@@ -21,20 +21,35 @@ export default function DownloadAllButton({ postId, fileCount }: DownloadAllButt
 
       setStatus("downloading");
 
-      // Download each file sequentially via presigned URLs
-      for (const f of files) {
-        const link = document.createElement("a");
-        link.href = f.url;
-        link.download = f.file_name;
-        link.target = "_blank";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        // Brief stagger to avoid browser blocking
-        await new Promise((r) => setTimeout(r, 300));
+      // Download satu per satu via fetch → blob → object URL
+      // Ini cara yang benar untuk cross-origin download
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        try {
+          const response = await fetch(f.url);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = f.file_name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Revoke setelah sedikit delay
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+          // Stagger antar file supaya tidak numpuk
+          if (i < files.length - 1) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        } catch (err) {
+          console.error(`Failed to download ${f.file_name}:`, err);
+        }
       }
     } catch (err) {
-      console.error("Download failed", err);
+      console.error("Download failed:", err);
     } finally {
       setStatus("idle");
     }
@@ -60,13 +75,18 @@ export default function DownloadAllButton({ postId, fileCount }: DownloadAllButt
         borderRadius: 3,
         color: status !== "idle" ? "var(--text-3)" : "var(--text)",
         fontSize: 13,
-        fontFamily: "var(--font-serif)",
+        fontFamily: "var(--font-sans)",
         cursor: status !== "idle" ? "wait" : "pointer",
         transition: "all 0.12s",
       }}
     >
-      {status !== "idle" ? <Loader size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={14} />}
+      {status !== "idle" ? (
+        <Loader size={14} style={{ animation: "spin 1s linear infinite" }} />
+      ) : (
+        <Download size={14} />
+      )}
       {label}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </button>
   );
 }
