@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q")?.trim() || "";
   const tags = searchParams.get("tags") || "";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-  const perPage = 24;
+  const perPage = 20;
   const offset = (page - 1) * perPage;
 
   let query = db
