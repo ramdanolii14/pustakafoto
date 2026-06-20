@@ -39,8 +39,13 @@ export async function GET(req: NextRequest) {
       .map((t) => t.trim())
       .filter(Boolean);
     if (tagList.length > 0) {
-      // overlaps = post yang punya minimal satu dari tag yang dipilih
-      query = query.overlaps("tags", tagList);
+      // Case-insensitive: coba exact match dulu, fallback lowercase
+      const normalized = tagList.flatMap((t) => [
+        t,
+        t.toLowerCase(),
+        t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(),
+      ]);
+      query = query.overlaps("tags", [...new Set(normalized)]);
     }
   }
 
