@@ -175,7 +175,13 @@ export default function PostDetailClient({ id }: { id: string }) {
               initialVote={post.user_vote}
               isLoggedIn={!!session}
             />
-            {files.length > 0 && <DownloadAllButton postId={post.id} fileCount={files.length} />}
+            {files.length > 0 && (
+              <DownloadAllButton
+                postId={post.id}
+                fileCount={files.length}
+                postTitle={post.title}
+              />
+            )}
 
             {canEdit && (
               <Link href={`/edit/${post.id}`} style={{
