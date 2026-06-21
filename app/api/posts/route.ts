@@ -9,9 +9,25 @@ export async function GET(req: NextRequest) {
 
   const q = searchParams.get("q")?.trim() || "";
   const tags = searchParams.get("tags") || "";
+  const sort = searchParams.get("sort") || "recent"; // recent | random | top
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
   const perPage = 24;
   const offset = (page - 1) * perPage;
+  const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
+
+  // Random sort: use Supabase RPC with random()
+  if (sort === "random" && !q && !tags) {
+    const { data, error } = await db.rpc("get_random_posts", { limit_n: perPage });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    const posts = (data || []).map((p: any) => ({
+      ...p,
+      thumbnail_url: `${r2Dev}/${p.thumbnail_key}`,
+      author: p.user_data,
+    }));
+    return NextResponse.json({ posts, total: posts.length, page: 1, per_page: perPage });
+  }
 
   let query = db
     .from("posts")
@@ -21,24 +37,29 @@ export async function GET(req: NextRequest) {
       user:user_id (id, name, image)`,
       { count: "exact" }
     )
-    .order("created_at", { ascending: false })
     .range(offset, offset + perPage - 1);
 
-  // Search — pakai ilike, tidak pakai textSearch karena butuh kolom fts terpisah
+  // Sort
+  if (sort === "top") {
+    query = query.order("upvotes", { ascending: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  // Search
   if (q) {
     query = query.or(
       `title.ilike.%${q}%,character_name.ilike.%${q}%,description.ilike.%${q}%`
     );
   }
 
-  // Tag filter — normalize ke Title Case supaya match data di DB
+  // Tag filter — normalize ke Title Case
   if (tags) {
     const tagList = tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean)
       .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
-
     if (tagList.length > 0) {
       query = query.overlaps("tags", tagList);
     }
@@ -50,7 +71,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
   const posts = (data || []).map((p: any) => ({
     ...p,
     thumbnail_url: `${r2Dev}/${p.thumbnail_key}`,
