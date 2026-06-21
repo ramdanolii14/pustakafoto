@@ -11,7 +11,8 @@ export const metadata: Metadata = {
     "cosplay", "cosplay photos", "cosplay archive", "cosplay gallery",
     "anime cosplay", "game cosplay", "cosplay community",
     "cosplay photography", "costume", "cosplayer",
-    "PustakaFoto",
+    "PustakaFoto", "cosplay leaked gallery", "cosplay leak gallery",
+    "cosplay stuff"
   ],
   authors: [{ name: "PustakaFoto Community" }],
   creator: "PustakaFoto",
