@@ -80,9 +80,13 @@ export default function PhotoGrid({ files, pageSize = 12 }: PhotoGridProps) {
   // Preload prev/next lightbox images while current is showing
   const preloadNeighbors = useCallback((i: number) => {
     if (files.length <= 1) return;
-    const prevIdx = i > 0 ? i - 1 : files.length - 1;
-    const nextIdx = i < files.length - 1 ? i + 1 : 0;
-    [prevIdx, nextIdx].forEach((idx) => {
+    const PRELOAD = 10;
+    const indices: number[] = [];
+    for (let d = 1; d <= PRELOAD; d++) {
+      indices.push((i - d + files.length) % files.length);
+      indices.push((i + d) % files.length);
+    }
+    [...new Set(indices)].forEach((idx) => {
       const img = new Image();
       img.src = cfImg(files[idx].url, LB_W, LB_Q);
     });
