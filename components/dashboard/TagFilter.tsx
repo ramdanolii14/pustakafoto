@@ -50,7 +50,7 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
               color: active ? "#000" : "var(--text-2)",
               fontSize: 12,
               fontWeight: active ? "bold" : "normal",
-              fontFamily: "var(--font-serif)",
+              fontFamily: "var(--font-sans)",
               cursor: "pointer",
               transition: "all 0.12s",
             }}
@@ -69,7 +69,7 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
             background: "transparent",
             color: "var(--text-3)",
             fontSize: 11,
-            fontFamily: "var(--font-serif)",
+            fontFamily: "var(--font-sans)",
             cursor: "pointer",
           }}
         >

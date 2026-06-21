@@ -72,7 +72,7 @@ export default function VoteBar({
     background: active ? color + "22" : "var(--bg-2)",
     color: active ? color : "var(--text-2)",
     fontSize: 14,
-    fontFamily: "var(--font-serif)",
+    fontFamily: "var(--font-sans)",
     cursor: isLoggedIn ? "pointer" : "default",
     transition: "all 0.12s",
     opacity: loading ? 0.6 : 1,

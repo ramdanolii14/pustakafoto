@@ -298,7 +298,7 @@ export default function UploadPage() {
                           background: active ? "var(--accent)" : "transparent",
                           color: active ? "#000" : "var(--text-2)",
                           fontSize: 12,
-                          fontFamily: "var(--font-serif)",
+                          fontFamily: "var(--font-sans)",
                           cursor: "pointer",
                         }}
                       >
@@ -462,7 +462,7 @@ export default function UploadPage() {
               borderRadius: 3,
               fontSize: 15,
               fontWeight: "bold",
-              fontFamily: "var(--font-serif)",
+              fontFamily: "var(--font-sans)",
               cursor: submitting ? "wait" : submitStatus === "done" ? "default" : "pointer",
               display: "flex",
               alignItems: "center",

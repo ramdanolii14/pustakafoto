@@ -90,7 +90,7 @@ export default function LoginPage() {
               color: "var(--text)",
               fontSize: 14,
               fontWeight: "bold",
-              fontFamily: "var(--font-serif)",
+              fontFamily: "var(--font-sans)",
               cursor: "pointer",
               transition: "border-color 0.15s",
             }}
