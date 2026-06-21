@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, User, Tag, Trash2, Images } from "lucide-react";
+import { ArrowLeft, Calendar, User, Tag, Trash2, Images, Pencil } from "lucide-react";
+import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import PhotoGrid from "@/components/post/PhotoGrid";
 import VoteBar from "@/components/post/VoteBar";
@@ -17,37 +18,36 @@ export default function PostDetailClient({ id }: { id: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     fetch(`/api/posts/${id}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Not found");
-        return r.json();
-      })
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then(setData)
       .catch(() => router.push("/dashboard"))
       .finally(() => setLoading(false));
   }, [id, router]);
 
+  useEffect(() => {
+    if (!session) return;
+    fetch("/api/admin?action=users&page=1")
+      .then((r) => setIsAdmin(r.ok && r.status !== 403))
+      .catch(() => setIsAdmin(false));
+  }, [session]);
+
   const handleDelete = async () => {
     if (!confirm("Delete this post and all its files? This cannot be undone.")) return;
     setDeleting(true);
     const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      router.push("/dashboard");
-    } else {
-      alert("Failed to delete post.");
-      setDeleting(false);
-    }
+    if (res.ok) router.push("/dashboard");
+    else { alert("Failed to delete post."); setDeleting(false); }
   };
 
   if (loading) {
     return (
       <AppShell>
-        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-3)" }}>
-          Loading...
-        </div>
+        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-3)" }}>Loading...</div>
       </AppShell>
     );
   }
@@ -56,6 +56,7 @@ export default function PostDetailClient({ id }: { id: string }) {
 
   const { post, files, comments } = data;
   const isOwner = session?.user.id === post.user_id;
+  const canEdit = isOwner || isAdmin;
 
   return (
     <AppShell>
@@ -71,37 +72,23 @@ export default function PostDetailClient({ id }: { id: string }) {
         <ArrowLeft size={14} /> Back
       </button>
 
-      {/* Banner thumbnail */}
+      {/* Banner */}
       {post.thumbnail_url && (
         <div style={{
-          width: "100%",
-          height: 340,
-          overflow: "hidden",
-          borderRadius: 4,
-          marginBottom: 12,
-          position: "relative",
+          width: "100%", height: 340, overflow: "hidden",
+          borderRadius: 4, marginBottom: 12, position: "relative",
           background: "var(--bg-3)",
         }}>
           <img
             src={post.thumbnail_url}
             alt={post.title}
-            style={{
-              width: "100%", height: "100%",
-              objectFit: "cover",
-              objectPosition: "top",
-              display: "block",
-            }}
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
           />
-          {/* Gradient overlay bottom */}
           <div style={{
             position: "absolute", inset: 0,
             background: "linear-gradient(to top, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.1) 50%, transparent 100%)",
           }} />
-          {/* Title overlay on banner */}
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0,
-            padding: "20px 22px",
-          }}>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 22px" }}>
             <h1 style={{
               fontSize: 26, fontWeight: "bold", color: "#fff",
               lineHeight: 1.2, marginBottom: 4,
@@ -109,11 +96,7 @@ export default function PostDetailClient({ id }: { id: string }) {
             }}>
               {post.title}
             </h1>
-            <div style={{
-              fontSize: 15, color: "var(--accent)",
-              fontStyle: "italic",
-              textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-            }}>
+            <div style={{ fontSize: 15, color: "var(--accent)", fontStyle: "italic", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
               {post.character_name}
             </div>
           </div>
@@ -127,7 +110,6 @@ export default function PostDetailClient({ id }: { id: string }) {
       }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Show title/character only if no banner */}
             {!post.thumbnail_url && (
               <>
                 <h1 style={{ fontSize: 24, fontWeight: "bold", color: "var(--text)", lineHeight: 1.2, marginBottom: 4 }}>
@@ -146,9 +128,21 @@ export default function PostDetailClient({ id }: { id: string }) {
             )}
 
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, fontSize: 12, color: "var(--text-3)" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <User size={12} /> {post.author?.name || "Unknown"}
-              </span>
+              <Link href={`/profile/${post.user_id}`} style={{
+                display: "flex", alignItems: "center", gap: 4,
+                color: "var(--text-2)", textDecoration: "none",
+              }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-2)")}
+              >
+                {post.author?.image ? (
+                  <img src={post.author.image} alt={post.author.name}
+                    style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  <User size={12} />
+                )}
+                {post.author?.name || "Unknown"}
+              </Link>
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Calendar size={12} /> {formatDate(post.created_at)}
               </span>
@@ -163,8 +157,7 @@ export default function PostDetailClient({ id }: { id: string }) {
                 {post.tags.map((t: string) => (
                   <span key={t} style={{
                     fontSize: 11, padding: "2px 8px",
-                    border: "1px solid var(--border)", borderRadius: 2,
-                    color: "var(--text-3)",
+                    border: "1px solid var(--border)", borderRadius: 2, color: "var(--text-3)",
                   }}>
                     {t}
                   </span>
@@ -173,6 +166,7 @@ export default function PostDetailClient({ id }: { id: string }) {
             )}
           </div>
 
+          {/* Actions */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
             <VoteBar
               postId={post.id}
@@ -181,10 +175,21 @@ export default function PostDetailClient({ id }: { id: string }) {
               initialVote={post.user_vote}
               isLoggedIn={!!session}
             />
-            {files.length > 0 && (
-              <DownloadAllButton postId={post.id} fileCount={files.length} />
+            {files.length > 0 && <DownloadAllButton postId={post.id} fileCount={files.length} />}
+
+            {canEdit && (
+              <Link href={`/edit/${post.id}`} style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "7px 12px", background: "transparent",
+                border: "1px solid var(--border-2)", color: "var(--text-2)",
+                borderRadius: 3, fontSize: 12, textDecoration: "none",
+                fontFamily: "var(--font-sans)",
+              }}>
+                <Pencil size={12} /> Edit Post
+              </Link>
             )}
-            {isOwner && (
+
+            {canEdit && (
               <button
                 onClick={handleDelete}
                 disabled={deleting}
@@ -196,15 +201,14 @@ export default function PostDetailClient({ id }: { id: string }) {
                   cursor: deleting ? "wait" : "pointer",
                 }}
               >
-                <Trash2 size={12} />
-                {deleting ? "Deleting..." : "Delete Post"}
+                <Trash2 size={12} /> {deleting ? "Deleting..." : "Delete Post"}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Photo grid with pagination */}
+      {/* Photo grid */}
       {files.length > 0 ? (
         <div style={{
           background: "var(--bg-2)", border: "1px solid var(--border)",
@@ -214,9 +218,8 @@ export default function PostDetailClient({ id }: { id: string }) {
         </div>
       ) : (
         <div style={{
-          padding: "30px", textAlign: "center",
-          border: "1px solid var(--border)", borderRadius: 3,
-          color: "var(--text-3)", fontSize: 13, marginBottom: 12,
+          padding: "30px", textAlign: "center", border: "1px solid var(--border)",
+          borderRadius: 3, color: "var(--text-3)", fontSize: 13, marginBottom: 12,
           background: "var(--bg-2)",
         }}>
           No photos attached to this post.
@@ -224,14 +227,12 @@ export default function PostDetailClient({ id }: { id: string }) {
       )}
 
       {/* Comments */}
-      <div style={{
-        background: "var(--bg-2)", border: "1px solid var(--border)",
-        borderRadius: 3, padding: "16px 18px",
-      }}>
+      <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 3, padding: "16px 18px" }}>
         <CommentSection
           postId={post.id}
           initialComments={comments}
           currentUserId={session?.user.id}
+          isAdmin={isAdmin}
         />
       </div>
     </AppShell>
