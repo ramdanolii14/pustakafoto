@@ -4,7 +4,7 @@ import DashboardClient from "./DashboardClient";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pustakafoto.nyanpixel.my.id";
 
 export const metadata: Metadata = {
-  title: "PustakaFoto — Cosplay Photo Archive",
+  title: "PustakaFoto - Cosplay Photo Archive",
   description:
     "Browse and discover thousands of cosplay photos. Search by character, series, tags, and more. A community-driven cosplay photo archive.",
   keywords: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: `${baseUrl}/dashboard`,
-    title: "PustakaFoto — Cosplay Photo Archive",
+    title: "PustakaFoto - Cosplay Photo Archive",
     description:
       "Browse and discover cosplay photos. Search by character, series, and tags. A community cosplay photo archive.",
     siteName: "PustakaFoto",
