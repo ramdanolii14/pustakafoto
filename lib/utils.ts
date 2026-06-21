@@ -39,9 +39,6 @@ export const ACCEPTED_IMAGE_TYPES = [
   "image/png",
   "image/webp",
   "image/gif",
-  "image/heic",
-  "image/heif",
-  "image/avif",
 ];
 
 export function isValidImageType(type: string): boolean {

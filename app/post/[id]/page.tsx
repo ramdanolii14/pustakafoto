@@ -1,199 +1,146 @@
-"use client";
+import type { Metadata } from "next";
+import { getAdminClient } from "@/lib/supabase";
+import PostDetailClient from "./PostDetailClient";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, User, Tag, Trash2, Images } from "lucide-react";
-import AppShell from "@/components/layout/AppShell";
-import PhotoGrid from "@/components/post/PhotoGrid";
-import VoteBar from "@/components/post/VoteBar";
-import CommentSection from "@/components/post/CommentSection";
-import DownloadAllButton from "@/components/post/DownloadAllButton";
-import { authClient } from "@/lib/auth-client";
-import { formatDate } from "@/lib/utils";
+interface Props {
+  params: Promise<{ id: string }>;
+}
 
-export default function PostDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { data: session } = authClient.useSession();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
+// Fetch post server-side for metadata
+async function getPost(id: string) {
+  const db = getAdminClient();
+  const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
 
-  useEffect(() => {
-    if (!id) return;
-    fetch(`/api/posts/${id}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Not found");
-        return r.json();
-      })
-      .then(setData)
-      .catch(() => router.push("/dashboard"))
-      .finally(() => setLoading(false));
-  }, [id, router]);
+  const { data: post } = await db
+    .from("posts")
+    .select(`id, title, character_name, description, tags, thumbnail_key, file_count, upvotes, downvotes, created_at, user:user_id (id, name, image)`)
+    .eq("id", id)
+    .single();
 
-  const handleDelete = async () => {
-    if (!confirm("Delete this post and all its files? This cannot be undone.")) return;
-    setDeleting(true);
-    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      router.push("/dashboard");
-    } else {
-      alert("Failed to delete post.");
-      setDeleting(false);
-    }
+  if (!post) return null;
+
+  return {
+    ...post,
+    thumbnail_url: `${r2Dev}/${(post as any).thumbnail_key}`,
   };
+}
 
-  if (loading) {
-    return (
-      <AppShell>
-        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-3)" }}>
-          Loading...
-        </div>
-      </AppShell>
-    );
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const post = await getPost(id);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pustakafoto.nyanpixel.my.id";
+
+  if (!post) {
+    return {
+      title: "Post Not Found — PustakaFoto",
+    };
   }
 
-  if (!data) return null;
+  const p = post as any;
+  const title = `${p.title} — ${p.character_name} | PustakaFoto`;
+  const description = [
+    p.description,
+    `${p.file_count} photo${p.file_count !== 1 ? "s" : ""}`,
+    `${p.upvotes} upvote${p.upvotes !== 1 ? "s" : ""}`,
+    p.tags?.length > 0 ? `Tags: ${p.tags.join(", ")}` : null,
+    `By ${p.user?.name || "Unknown"}`,
+    `Uploaded on ${new Date(p.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  const { post, files, comments } = data;
-  const isOwner = session?.user.id === post.user_id;
+  const url = `${baseUrl}/post/${id}`;
+
+  return {
+    title,
+    description,
+    keywords: [
+      "cosplay",
+      "cosplay photo",
+      p.character_name,
+      p.title,
+      ...(p.tags || []),
+      "PustakaFoto",
+      p.user?.name,
+    ].filter(Boolean),
+    authors: [{ name: p.user?.name || "Unknown" }],
+    openGraph: {
+      type: "article",
+      url,
+      title,
+      description,
+      siteName: "PustakaFoto",
+      images: p.thumbnail_url
+        ? [
+            {
+              url: p.thumbnail_url,
+              width: 1200,
+              height: 630,
+              alt: `${p.title} — ${p.character_name}`,
+            },
+          ]
+        : [],
+      publishedTime: p.created_at,
+      tags: p.tags || [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: p.thumbnail_url ? [p.thumbnail_url] : [],
+    },
+    alternates: {
+      canonical: url,
+    },
+    other: {
+      // Extra Open Graph
+      "og:image:width": "1200",
+      "og:image:height": "630",
+      // Schema.org structured data embedded as JSON-LD
+    },
+  };
+}
+
+export default async function PostDetailPage({ params }: Props) {
+  const { id } = await params;
+  const post = await getPost(id);
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pustakafoto.nyanpixel.my.id";
+
+  // JSON-LD structured data
+  const jsonLd = post
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ImageGallery",
+        name: (post as any).title,
+        description: (post as any).description || `${(post as any).character_name} cosplay`,
+        url: `${baseUrl}/post/${id}`,
+        image: (post as any).thumbnail_url,
+        author: {
+          "@type": "Person",
+          name: (post as any).user?.name || "Unknown",
+        },
+        datePublished: (post as any).created_at,
+        interactionStatistic: [
+          {
+            "@type": "InteractionCounter",
+            interactionType: "https://schema.org/LikeAction",
+            userInteractionCount: (post as any).upvotes,
+          },
+        ],
+        keywords: (post as any).tags?.join(", "),
+        numberOfItems: (post as any).file_count,
+      }
+    : null;
 
   return (
-    <AppShell>
-      {/* Back */}
-      <button
-        onClick={() => router.back()}
-        style={{
-          display: "flex", alignItems: "center", gap: 6,
-          background: "transparent", border: "none",
-          color: "var(--text-3)", fontSize: 13, cursor: "pointer",
-          marginBottom: 14, padding: 0,
-          fontFamily: "var(--font-serif)",
-        }}
-      >
-        <ArrowLeft size={14} /> Back
-      </button>
-
-      {/* Header */}
-      <div style={{
-        background: "var(--bg-2)",
-        border: "1px solid var(--border)",
-        borderRadius: 3,
-        padding: "16px 18px",
-        marginBottom: 12,
-      }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ fontSize: 24, fontWeight: "bold", color: "var(--text)", lineHeight: 1.2, marginBottom: 4 }}>
-              {post.title}
-            </h1>
-            <div style={{ fontSize: 16, color: "var(--accent)", fontStyle: "italic", marginBottom: 10 }}>
-              {post.character_name}
-            </div>
-
-            {post.description && (
-              <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 12 }}>
-                {post.description}
-              </p>
-            )}
-
-            {/* Meta row */}
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, fontSize: 12, color: "var(--text-3)" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <User size={12} />
-                {post.author?.name || "Unknown"}
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Calendar size={12} />
-                {formatDate(post.created_at)}
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Images size={12} />
-                {post.file_count} file{post.file_count !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                <Tag size={11} color="var(--text-3)" />
-                {post.tags.map((t: string) => (
-                  <span key={t} style={{
-                    fontSize: 11, padding: "2px 8px",
-                    border: "1px solid var(--border)", borderRadius: 2,
-                    color: "var(--text-3)",
-                  }}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-            <VoteBar
-              postId={post.id}
-              initialUpvotes={post.upvotes}
-              initialDownvotes={post.downvotes}
-              initialVote={post.user_vote}
-              isLoggedIn={!!session}
-            />
-            {files.length > 0 && (
-              <DownloadAllButton postId={post.id} fileCount={files.length} />
-            )}
-            {isOwner && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "7px 12px",
-                  background: "transparent",
-                  border: "1px solid var(--red)",
-                  color: "var(--red)",
-                  borderRadius: 3, fontSize: 12,
-                  fontFamily: "var(--font-serif)",
-                  cursor: deleting ? "wait" : "pointer",
-                }}
-              >
-                <Trash2 size={12} />
-                {deleting ? "Deleting..." : "Delete Post"}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Photo grid */}
-      {files.length > 0 ? (
-        <div style={{ marginBottom: 14 }}>
-          <PhotoGrid files={files} />
-        </div>
-      ) : (
-        <div style={{
-          padding: "30px", textAlign: "center",
-          border: "1px solid var(--border)", borderRadius: 3,
-          color: "var(--text-3)", fontSize: 13, marginBottom: 14,
-          background: "var(--bg-2)",
-        }}>
-          No photos attached to this post.
-        </div>
-      )}
-
-      {/* Comments */}
-      <div style={{
-        background: "var(--bg-2)",
-        border: "1px solid var(--border)",
-        borderRadius: 3,
-        padding: "16px 18px",
-      }}>
-        <CommentSection
-          postId={post.id}
-          initialComments={comments}
-          currentUserId={session?.user.id}
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-      </div>
-    </AppShell>
+      )}
+      <PostDetailClient id={id} />
+    </>
   );
 }

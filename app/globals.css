@@ -14,7 +14,7 @@
   --red: #cc4444;
   --green: #44aa66;
   --blue: #4488cc;
-  --font-sans: var(--font-dm-sans), "DM Sans", sans-serif;
+  --font-serif: "Times New Roman", Times, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,7 +22,7 @@
 html {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -44,12 +44,16 @@ input, textarea, select {
   background: var(--bg-2);
   border: 1px solid var(--border);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 15px;
   outline: none;
   transition: border-color 0.15s;
 }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 
-button { cursor: pointer; font-family: var(--font-sans); }
+button { cursor: pointer; font-family: var(--font-serif); }
 img { display: block; max-width: 100%; }
+
+:root {
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+}

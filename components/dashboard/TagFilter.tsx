@@ -23,26 +23,25 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
       .then((d) => setTags(d.tags || []));
   }, []);
 
-  if (tags.length === 0) return null;
-
-  // Kirim name (Title Case) bukan slug
-  const toggle = (name: string) => {
-    if (selected.includes(name)) {
-      onChange(selected.filter((s) => s !== name));
+  const toggle = (slug: string) => {
+    if (selected.includes(slug)) {
+      onChange(selected.filter((s) => s !== slug));
     } else {
-      onChange([...selected, name]);
+      onChange([...selected, slug]);
     }
   };
+
+  if (tags.length === 0) return null;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
       <Tag size={13} color="var(--text-3)" />
       {tags.map((t) => {
-        const active = selected.includes(t.name);
+        const active = selected.includes(t.slug);
         return (
           <button
             key={t.id}
-            onClick={() => toggle(t.name)}
+            onClick={() => toggle(t.slug)}
             style={{
               padding: "3px 10px",
               borderRadius: 2,
@@ -51,7 +50,7 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
               color: active ? "#000" : "var(--text-2)",
               fontSize: 12,
               fontWeight: active ? "bold" : "normal",
-              fontFamily: "var(--font-sans)",
+              fontFamily: "var(--font-serif)",
               cursor: "pointer",
               transition: "all 0.12s",
             }}
@@ -70,7 +69,7 @@ export default function TagFilter({ selected, onChange }: TagFilterProps) {
             background: "transparent",
             color: "var(--text-3)",
             fontSize: 11,
-            fontFamily: "var(--font-sans)",
+            fontFamily: "var(--font-serif)",
             cursor: "pointer",
           }}
         >

@@ -7,45 +7,39 @@ export async function GET(req: NextRequest) {
   const db = getAdminClient();
   const { searchParams } = new URL(req.url);
 
-  const q = searchParams.get("q")?.trim() || "";
+  const q = searchParams.get("q") || "";
   const tags = searchParams.get("tags") || "";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-  const perPage =18;
+  const perPage = 24;
   const offset = (page - 1) * perPage;
 
   let query = db
     .from("posts")
     .select(
-      `id, user_id, title, character_name, description, tags,
+      `
+      id, user_id, title, character_name, description, tags,
       thumbnail_key, file_count, upvotes, downvotes, created_at, updated_at,
-      user:user_id (id, name, image)`,
+      user:user_id (id, name, image)
+    `,
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
     .range(offset, offset + perPage - 1);
 
-  // Full-text search — pakai ilike instead of textSearch untuk hindari error kolom fts
   if (q) {
-    query = query.or(
-      `title.ilike.%${q}%,character_name.ilike.%${q}%,description.ilike.%${q}%`
-    );
+    query = query.textSearch("fts", q, {
+      type: "websearch",
+      config: "english",
+    });
   }
 
-  // Tag filter — pakai contains (post harus punya SEMUA tag yang dipilih)
-  // atau overlaps (post harus punya SALAH SATU tag)
   if (tags) {
     const tagList = tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
     if (tagList.length > 0) {
-      // Case-insensitive: coba exact match dulu, fallback lowercase
-      const normalized = tagList.flatMap((t) => [
-        t,
-        t.toLowerCase(),
-        t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(),
-      ]);
-      query = query.overlaps("tags", [...new Set(normalized)]);
+      query = query.overlaps("tags", tagList);
     }
   }
 
