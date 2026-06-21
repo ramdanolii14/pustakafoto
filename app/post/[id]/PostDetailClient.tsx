@@ -12,6 +12,10 @@ function cfImg(url: string, width: number, quality = 70): string {
   } catch {}
   return url;
 }
+
+function toCharSlug(name: string): string {
+  return encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"));
+}
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, User, Tag, Trash2, Images, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -107,9 +111,9 @@ export default function PostDetailClient({ id }: { id: string }) {
             }}>
               {post.title}
             </h1>
-            <div style={{ fontSize: 15, color: "var(--accent)", fontStyle: "italic", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+            <Link href={`/explore/character/${toCharSlug(post.character_name)}`} style={{ fontSize: 15, color: "var(--accent)", fontStyle: "italic", textShadow: "0 1px 4px rgba(0,0,0,0.8)", textDecoration: "none" }}>
               {post.character_name}
-            </div>
+            </Link>
           </div>
         </div>
       )}
@@ -126,9 +130,9 @@ export default function PostDetailClient({ id }: { id: string }) {
                 <h1 style={{ fontSize: 24, fontWeight: "bold", color: "var(--text)", lineHeight: 1.2, marginBottom: 4 }}>
                   {post.title}
                 </h1>
-                <div style={{ fontSize: 16, color: "var(--accent)", fontStyle: "italic", marginBottom: 10 }}>
+                <Link href={`/explore/character/${toCharSlug(post.character_name)}`} style={{ fontSize: 16, color: "var(--accent)", fontStyle: "italic", marginBottom: 10, display: "block", textDecoration: "none" }}>
                   {post.character_name}
-                </div>
+                </Link>
               </>
             )}
 
@@ -166,12 +170,16 @@ export default function PostDetailClient({ id }: { id: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                 <Tag size={11} color="var(--text-3)" />
                 {post.tags.map((t: string) => (
-                  <span key={t} style={{
+                  <Link key={t} href={`/explore/tag/${t.toLowerCase()}`} style={{
                     fontSize: 11, padding: "2px 8px",
-                    border: "1px solid var(--border)", borderRadius: 2, color: "var(--text-3)",
-                  }}>
+                    border: "1px solid var(--border)", borderRadius: 2,
+                    color: "var(--text-3)", textDecoration: "none",
+                  }}
+                    onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--accent-dim)"; el.style.color = "var(--accent)"; }}
+                    onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border)"; el.style.color = "var(--text-3)"; }}
+                  >
                     {t}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
