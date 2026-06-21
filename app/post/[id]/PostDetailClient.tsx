@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+const CDN_HOST = "cdn.pustakafoto.nyanpixel.my.id";
+function cfImg(url: string, width: number, quality = 70): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname === CDN_HOST || u.hostname.endsWith(".r2.dev") || u.hostname.endsWith(".r2.cloudflarestorage.com")) {
+      return `${u.origin}/cdn-cgi/image/width=${width},quality=${quality},format=webp${u.pathname}`;
+    }
+  } catch {}
+  return url;
+}
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, User, Tag, Trash2, Images, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -80,7 +91,7 @@ export default function PostDetailClient({ id }: { id: string }) {
           background: "var(--bg-3)",
         }}>
           <img
-            src={post.thumbnail_url}
+            src={cfImg(post.thumbnail_url, 1200, 80)}
             alt={post.title}
             style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
           />
