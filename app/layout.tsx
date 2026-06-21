@@ -6,7 +6,7 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://pustakafoto.nyanpix
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "PustakaFoto — Cosplay Photo Archive",
+    default: "PustakaFoto - Cosplay Photo Archive",
     template: "%s | PustakaFoto",
   },
   description: "A community-driven cosplay photo archive. Browse, discover, and share cosplay photos.",
