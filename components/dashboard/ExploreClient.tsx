@@ -14,12 +14,13 @@ interface ExploreClientProps {
   slug: string;
   displayName: string;
   icon: React.ReactNode;
+  totalCount?: number;
 }
 
-export default function ExploreClient({ type, slug, displayName, icon }: ExploreClientProps) {
+export default function ExploreClient({ type, slug, displayName, icon, totalCount }: ExploreClientProps) {
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(totalCount || 0);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortMode>("recent");
   const [loading, setLoading] = useState(true);
