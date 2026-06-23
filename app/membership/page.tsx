@@ -26,7 +26,7 @@ const BENEFITS = [
 ];
 
 // Ganti nomor WA admin di sini
-const ADMIN_WA = "6281234567890";
+const ADMIN_WA = "6285796182078";
 
 export default function MembershipPage() {
   const { data: session } = authClient.useSession();
