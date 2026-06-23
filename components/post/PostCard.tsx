@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ThumbsUp, ThumbsDown, Images, Calendar } from "lucide-react";
+import MemberBadge from "@/components/membership/MemberBadge";
 import { Post } from "@/types";
 import { formatDate } from "@/lib/utils";
 
@@ -89,6 +90,13 @@ export default function PostCard({ post }: PostCardProps) {
           >
             {post.character_name}
           </Link>
+
+          {/* Member/Nude badges */}
+          {(post.is_members_only || post.is_nude) && (
+            <div style={{ marginTop: 2 }}>
+              <MemberBadge isMembersOnly={post.is_members_only} isNude={post.is_nude} small />
+            </div>
+          )}
 
           {/* Tags — clickable */}
           {post.tags && post.tags.length > 0 && (

@@ -7,14 +7,8 @@ import { headers } from "next/headers";
 async function requireAdmin(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
-
   const db = getAdminClient();
-  const { data: user } = await db
-    .from("user")
-    .select("role")
-    .eq("id", session.user.id)
-    .single();
-
+  const { data: user } = await db.from("user").select("role").eq("id", session.user.id).single();
   if (user?.role !== "admin") return null;
   return session;
 }
@@ -32,15 +26,12 @@ export async function GET(req: NextRequest) {
     const perPage = 30;
     const offset = (page - 1) * perPage;
     const q = searchParams.get("q") || "";
-
     let query = db
       .from("user")
       .select("id, name, email, image, role, banned, banned_reason, createdAt", { count: "exact" })
       .order("createdAt", { ascending: false })
       .range(offset, offset + perPage - 1);
-
     if (q) query = query.ilike("name", `%${q}%`);
-
     const { data, error, count } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ users: data || [], total: count || 0 });
@@ -50,13 +41,11 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const perPage = 30;
     const offset = (page - 1) * perPage;
-
     const { data, error, count } = await db
       .from("posts")
-      .select("id, title, character_name, user_id, file_count, upvotes, downvotes, created_at, user:user_id(name, email)", { count: "exact" })
+      .select("id, title, character_name, user_id, file_count, upvotes, downvotes, created_at, is_nude, is_members_only, forced_members_only, user:user_id(name, email)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + perPage - 1);
-
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ posts: data || [], total: count || 0 });
   }
@@ -65,15 +54,29 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const perPage = 30;
     const offset = (page - 1) * perPage;
-
     const { data, error, count } = await db
       .from("comments")
       .select("id, content, post_id, user_id, created_at, author:user_id(name, email)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + perPage - 1);
-
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ comments: data || [], total: count || 0 });
+  }
+
+  if (action === "members") {
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const perPage = 30;
+    const offset = (page - 1) * perPage;
+    const { data, error, count } = await db
+      .from("subscriptions")
+      .select(`
+        id, status, started_at, expires_at, amount, created_at,
+        user:user_id(id, name, email, image)
+      `, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + perPage - 1);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ members: data || [], total: count || 0 });
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -87,63 +90,85 @@ export async function POST(req: NextRequest) {
   const { action, target_id, reason } = body;
   const db = getAdminClient();
 
-  // Delete post
   if (action === "delete_post") {
-    const { data: post } = await db
-      .from("posts")
-      .select("thumbnail_key")
-      .eq("id", target_id)
-      .single();
-
-    const { data: files } = await db
-      .from("post_files")
-      .select("file_key")
-      .eq("post_id", target_id);
-
-    const keys = [
-      (post as any)?.thumbnail_key,
-      ...((files || []).map((f: any) => f.file_key)),
-    ].filter(Boolean);
-
+    const { data: post } = await db.from("posts").select("thumbnail_key").eq("id", target_id).single();
+    const { data: files } = await db.from("post_files").select("file_key").eq("post_id", target_id);
+    const keys = [(post as any)?.thumbnail_key, ...((files || []).map((f: any) => f.file_key))].filter(Boolean);
     await deleteR2Objects(keys);
     await db.from("posts").delete().eq("id", target_id);
-
     return NextResponse.json({ success: true });
   }
 
-  // Delete comment
   if (action === "delete_comment") {
     await db.from("comments").delete().eq("id", target_id);
     return NextResponse.json({ success: true });
   }
 
-  // Ban user
   if (action === "ban_user") {
-    await db
-      .from("user")
-      .update({ banned: true, banned_reason: reason || "Banned by admin" })
-      .eq("id", target_id);
-
-    // Invalidate all sessions
+    await db.from("user").update({ banned: true, banned_reason: reason || "Banned by admin" }).eq("id", target_id);
     await db.from("session").delete().eq("userId", target_id);
-
     return NextResponse.json({ success: true });
   }
 
-  // Unban user
   if (action === "unban_user") {
-    await db
-      .from("user")
-      .update({ banned: false, banned_reason: null })
-      .eq("id", target_id);
-
+    await db.from("user").update({ banned: false, banned_reason: null }).eq("id", target_id);
     return NextResponse.json({ success: true });
   }
 
-  // Promote to admin
   if (action === "set_role") {
-    const { role } = body;
-    await db.from("user").update({ role }).eq("id", target_id);
+    await db.from("user").update({ role: body.role }).eq("id", target_id);
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Membership management ──
+  if (action === "activate_member") {
+    const { user_id, days = 30 } = body;
+    const db2 = getAdminClient();
+
+    // Get default plan
+    const { data: plan } = await db2.from("membership_plans").select("id").eq("is_active", true).single();
+    if (!plan) return NextResponse.json({ error: "No active plan" }, { status: 500 });
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+    // Check existing subscription
+    const { data: existing } = await db2
+      .from("subscriptions")
+      .select("id, expires_at")
+      .eq("user_id", user_id)
+      .eq("status", "active")
+      .single();
+
+    if (existing) {
+      // Extend existing — add days from current expiry or now, whichever is later
+      const currentExpiry = new Date(existing.expires_at);
+      const base = currentExpiry > now ? currentExpiry : now;
+      const newExpiry = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+      await db2.from("subscriptions").update({
+        expires_at: newExpiry.toISOString(),
+        updated_at: now.toISOString(),
+      }).eq("id", existing.id);
+    } else {
+      // New subscription
+      await db2.from("subscriptions").insert({
+        user_id,
+        plan_id: plan.id,
+        status: "active",
+        amount: 14999,
+        started_at: now.toISOString(),
+        expires_at: expires.toISOString(),
+      });
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "deactivate_member") {
+    const { user_id } = body;
+    await db.from("subscriptions")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("user_id", user_id)
+      .eq("status", "active");
     return NextResponse.json({ success: true });
   }
 

@@ -40,7 +40,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { title, character_name, description, tags } = body;
+  const { title, character_name, description, tags, is_nude, is_members_only, is_free_all, free_percent } = body;
 
   if (!title?.trim() || !character_name?.trim()) {
     return NextResponse.json({ error: "Title and character name are required" }, { status: 400 });

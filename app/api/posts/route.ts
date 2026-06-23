@@ -95,6 +95,13 @@ export async function POST(req: NextRequest) {
 
   const db = getAdminClient();
 
+  const {
+    is_nude = false,
+    is_members_only = false,
+    is_free_all = true,
+    free_percent = 100,
+  } = body;
+
   const { data, error } = await db
     .from("posts")
     .insert({
@@ -105,6 +112,10 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       tags: tags || [],
       thumbnail_key,
+      is_nude: !!is_nude,
+      is_members_only: !!is_members_only || !!is_nude,
+      is_free_all: !!is_free_all,
+      free_percent: Math.max(0, Math.min(100, parseInt(free_percent) || 100)),
     })
     .select()
     .single();

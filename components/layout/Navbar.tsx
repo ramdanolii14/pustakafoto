@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Upload, BookImage, User, Shield } from "lucide-react";
+import { LogOut, Upload, BookImage, User, Shield, Crown } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
 
@@ -81,6 +81,19 @@ export default function Navbar() {
                 <span>Admin</span>
               </Link>
             )}
+
+            <Link href="/membership" style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "5px 8px",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              color: "var(--text-3)", borderRadius: 3, fontSize: 11,
+              textDecoration: "none",
+              flexShrink: 0,
+            }}>
+              <Crown size={11} />
+              <span>Member</span>
+            </Link>
 
             <Link href="/upload" style={{
               display: "flex", alignItems: "center", gap: 4,

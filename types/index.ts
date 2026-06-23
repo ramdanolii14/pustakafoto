@@ -28,6 +28,11 @@ export interface Post {
   updated_at: string;
   author?: User;
   user_vote?: 'up' | 'down' | null;
+  is_nude?: boolean;
+  is_members_only?: boolean;
+  is_free_all?: boolean;
+  free_percent?: number;
+  forced_members_only?: boolean;
 }
 
 export interface PostFile {
