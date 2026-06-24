@@ -105,18 +105,22 @@ export default function PostDetailClient({ id }: { id: string }) {
   let visibleFiles = files;
   let lockedCount = 0;
 
-  if (!canSeeAll && !nudeNeedsConfirm) {
+  if (!canSeeAll) {
+    // Post has any restriction
     if (effectiveMembersOnly || post.is_nude) {
-      // All locked if members only or nude (nude requires membership too)
-      if (!isMember) {
-        // show free_percent
-        if (post.is_free_all) {
-          visibleFiles = files;
-        } else {
-          const freeCount = Math.floor((files.length * (post.free_percent || 0)) / 100);
-          visibleFiles = files.slice(0, Math.max(freeCount, 0));
-          lockedCount = files.length - visibleFiles.length;
-        }
+      if (post.is_free_all) {
+        // All free — show everything even to non-members
+        visibleFiles = files;
+        lockedCount = 0;
+      } else if ((post.free_percent || 0) === 0) {
+        // All locked
+        visibleFiles = [];
+        lockedCount = files.length;
+      } else {
+        // Partial — show free_percent
+        const freeCount = Math.floor((files.length * (post.free_percent || 0)) / 100);
+        visibleFiles = files.slice(0, Math.max(freeCount, 0));
+        lockedCount = files.length - visibleFiles.length;
       }
     }
   }

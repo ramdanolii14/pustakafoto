@@ -67,16 +67,32 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const perPage = 30;
     const offset = (page - 1) * perPage;
-    const { data, error, count } = await db
+
+    // Fetch subscriptions first
+    const { data: subs, error, count } = await db
       .from("subscriptions")
-      .select(`
-        id, status, started_at, expires_at, amount, created_at,
-        user:user_id(id, name, email, image)
-      `, { count: "exact" })
+      .select("id, user_id, status, started_at, expires_at, amount, created_at", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + perPage - 1);
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ members: data || [], total: count || 0 });
+    if (!subs || subs.length === 0) return NextResponse.json({ members: [], total: count || 0 });
+
+    // Fetch user data separately
+    const userIds = [...new Set(subs.map((s: any) => s.user_id))];
+    const { data: users } = await db
+      .from("user")
+      .select("id, name, email, image")
+      .in("id", userIds);
+
+    const userMap = Object.fromEntries((users || []).map((u: any) => [u.id, u]));
+
+    const members = subs.map((s: any) => ({
+      ...s,
+      user: userMap[s.user_id] || null,
+    }));
+
+    return NextResponse.json({ members, total: count || 0 });
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -164,10 +180,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "deactivate_member") {
-    const { user_id } = body;
+    // Accept both user_id from body or target_id
+    const uid = body.user_id || target_id;
     await db.from("subscriptions")
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
-      .eq("user_id", user_id)
+      .eq("user_id", uid)
       .eq("status", "active");
     return NextResponse.json({ success: true });
   }
