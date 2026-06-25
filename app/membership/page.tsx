@@ -22,7 +22,7 @@ const BENEFITS = [
   "Akses semua foto di setiap post tanpa batas",
   "Lihat konten eksklusif members-only",
   "Akses konten dewasa (18+)",
-  "Support langsung ke para cosplayer",
+  "Multi download all file for easy access",
 ];
 
 // Ganti nomor WA admin di sini
