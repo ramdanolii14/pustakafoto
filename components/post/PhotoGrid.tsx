@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ChevronDown } from "lucide-react";
 
 interface PhotoFile {
@@ -45,10 +45,23 @@ const THUMB_Q = 65;
 const LB_W    = 1440;
 const LB_Q    = 75;
 
-export default function PhotoGrid({ files, pageSize = 20 }: PhotoGridProps) {
+export default function PhotoGrid({ files, pageSize = 30 }: PhotoGridProps) {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [lbLoaded, setLbLoaded] = useState(false);
   const [visibleCount, setVisibleCount] = useState(pageSize);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // After load more, scroll just a tiny bit to trigger lazy load on newly added images
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => {
+      const next = c + pageSize;
+      // After state update, nudge scroll to trigger browser lazy load
+      setTimeout(() => {
+        window.dispatchEvent(new Event("scroll"));
+      }, 50);
+      return next;
+    });
+  }, [pageSize]);
 
   const visibleFiles = files.slice(0, visibleCount);
   const hasMore = visibleCount < files.length;
@@ -102,7 +115,7 @@ export default function PhotoGrid({ files, pageSize = 20 }: PhotoGridProps) {
       }}>
         {visibleFiles.map((f, i) => (
           <div
-            key={f.id}
+            key={`${f.id}-${i}`}
             onClick={() => { openLightbox(i); preloadNeighbors(i); }}
             style={{
               aspectRatio: "3/4",
@@ -117,7 +130,7 @@ export default function PhotoGrid({ files, pageSize = 20 }: PhotoGridProps) {
             <img
               src={cfImg(f.url, THUMB_W, THUMB_Q)}
               alt={f.file_name}
-              loading="lazy"
+              loading={i < 12 ? "eager" : "lazy"}
               decoding="async"
               style={{
                 width: "100%", height: "100%",
@@ -158,7 +171,7 @@ export default function PhotoGrid({ files, pageSize = 20 }: PhotoGridProps) {
         <div style={{ display: "flex", gap: 8 }}>
           {hasMore && (
             <button
-              onClick={() => setVisibleCount((c) => c + pageSize)}
+              onClick={loadMore}
               style={{
                 display: "flex", alignItems: "center", gap: 5,
                 padding: "5px 12px",
