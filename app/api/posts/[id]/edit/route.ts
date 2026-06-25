@@ -46,6 +46,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Title and character name are required" }, { status: 400 });
   }
 
+  const nudeVal = !!is_nude;
+  const membersVal = !!is_members_only || nudeVal;
+  const freeAllVal = membersVal ? !!is_free_all : true;
+  const freePctVal = membersVal && !freeAllVal
+    ? Math.max(0, Math.min(100, parseInt(String(free_percent)) || 0))
+    : 100;
+
   const { data, error } = await db
     .from("posts")
     .update({
@@ -53,6 +60,10 @@ export async function PATCH(
       character_name: character_name.trim(),
       description: description?.trim() || null,
       tags: tags || [],
+      is_nude: nudeVal,
+      is_members_only: membersVal,
+      is_free_all: freeAllVal,
+      free_percent: freePctVal,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

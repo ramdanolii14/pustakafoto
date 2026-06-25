@@ -36,10 +36,11 @@ export default function EditPostPage() {
         setCharacter(post.character_name);
         setDescription(post.description || "");
         setTags(post.tags || []);
-        setIsNude(post.is_nude || false);
-        setIsMembersOnly(post.is_members_only || false);
+        setIsNude(post.is_nude === true);
+        setIsMembersOnly(post.is_members_only === true);
+        // is_free_all: default true if null/undefined (old posts), false only if explicitly false
         setIsFreeAll(post.is_free_all !== false);
-        setFreePercent(post.free_percent || 30);
+        setFreePercent(typeof post.free_percent === "number" && post.free_percent < 100 ? post.free_percent : 30);
         setLoading(false);
       })
       .catch(() => router.push("/dashboard"));
