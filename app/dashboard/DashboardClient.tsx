@@ -50,7 +50,7 @@ export default function DashboardClient() {
 
   // Initial load
   useEffect(() => {
-    fetchPosts("", [], "recent", 1, false);
+    fetchPosts("", [], "random", 1, false);
   }, [fetchPosts]);
 
   // Debounced search + tag + sort changes
