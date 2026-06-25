@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ThumbsUp, ThumbsDown, Images, Calendar } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Images, Calendar, AlertTriangle, Crown } from "lucide-react";
 import MemberBadge from "@/components/membership/MemberBadge";
 import { Post } from "@/types";
 import { formatDate } from "@/lib/utils";
@@ -48,7 +48,12 @@ export default function PostCard({ post }: PostCardProps) {
             <img
               src={cfImg(post.thumbnail_url, 280, 68)}
               alt={post.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              style={{
+                width: "100%", height: "100%", objectFit: "cover", display: "block",
+                // Blur nude thumbnails
+                filter: post.is_nude ? "blur(12px)" : "none",
+                transform: post.is_nude ? "scale(1.1)" : "none",
+              }}
               loading="lazy"
               decoding="async"
             />
@@ -61,6 +66,51 @@ export default function PostCard({ post }: PostCardProps) {
               <Images size={32} />
             </div>
           )}
+
+          {/* 18+ overlay — shown on nude posts */}
+          {post.is_nude && (
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              gap: 6,
+              background: "rgba(0,0,0,0.35)",
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: "rgba(204,68,68,0.85)",
+                border: "2px solid rgba(255,255,255,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <AlertTriangle size={18} color="white" />
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: "bold",
+                color: "white",
+                background: "rgba(204,68,68,0.8)",
+                padding: "2px 8px", borderRadius: 2,
+                letterSpacing: "0.05em",
+              }}>
+                18+
+              </span>
+            </div>
+          )}
+
+          {/* Members only badge on thumbnail */}
+          {post.is_members_only && !post.is_nude && (
+            <div style={{
+              position: "absolute", top: 6, left: 6,
+              background: "rgba(0,0,0,0.7)",
+              border: "1px solid var(--accent-dim)",
+              borderRadius: 2, padding: "2px 7px",
+              fontSize: 10, fontWeight: "bold",
+              color: "var(--accent)",
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <Crown size={9} /> MEMBER
+            </div>
+          )}
+
           {post.file_count > 0 && (
             <div style={{
               position: "absolute", bottom: 6, right: 6,
