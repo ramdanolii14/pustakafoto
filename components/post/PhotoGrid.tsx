@@ -45,7 +45,7 @@ const THUMB_Q = 65;
 const LB_W    = 1440;
 const LB_Q    = 75;
 
-export default function PhotoGrid({ files, pageSize = 12 }: PhotoGridProps) {
+export default function PhotoGrid({ files, pageSize = 20 }: PhotoGridProps) {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [lbLoaded, setLbLoaded] = useState(false);
   const [visibleCount, setVisibleCount] = useState(pageSize);
