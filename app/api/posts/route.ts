@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     .select(
       `id, user_id, title, character_name, description, tags,
       thumbnail_key, file_count, upvotes, downvotes, created_at, updated_at,
+      is_nude, is_members_only, is_free_all, free_percent, forced_members_only,
       user:user_id (id, name, image)`,
       { count: "exact" }
     )
