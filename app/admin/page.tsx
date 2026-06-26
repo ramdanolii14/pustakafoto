@@ -283,25 +283,28 @@ export default function AdminPage() {
 
           {/* Members */}
           {tab === "members" && data.map((m: any) => {
-            const isActive = m.status === "active" && new Date(m.expires_at) > new Date();
-            const isExpired = m.status === "active" && new Date(m.expires_at) <= new Date();
+            const expiresAt = m.expires_at ? new Date(m.expires_at) : null;
+            const now = new Date();
+            const isActive = m.status === "active" && !!expiresAt && expiresAt > now;
+            const isExpired = m.status === "active" && !!expiresAt && expiresAt <= now;
+            const statusLabel = isActive ? "ACTIVE" : isExpired ? "EXPIRED" : (m.status || "unknown").toUpperCase();
             return (
               <div key={m.id} style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: isExpired ? "rgba(204,68,68,0.04)" : "transparent" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                   {m.user?.image
-                    ? <img src={m.user.image} alt={m.user.name} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                    ? <img src={m.user.image} alt={m.user?.name || ""} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                     : <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--bg-3)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Crown size={13} color="var(--text-3)" /></div>
                   }
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 13, fontWeight: "bold", color: "var(--text)" }}>{m.user?.name || "Unknown"}</span>
                       <span style={{ fontSize: 9, fontWeight: "bold", padding: "1px 5px", background: isActive ? "rgba(192,160,96,0.12)" : "rgba(204,68,68,0.12)", border: `1px solid ${isActive ? "var(--accent-dim)" : "var(--red)"}`, color: isActive ? "var(--accent)" : "var(--red)", borderRadius: 2 }}>
-                        {isActive ? "ACTIVE" : isExpired ? "EXPIRED" : m.status.toUpperCase()}
+                        {statusLabel}
                       </span>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>{m.user?.email}</span>
-                      {m.expires_at && (
+                      <span>{m.user?.email || "-"}</span>
+                      {expiresAt && (
                         <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
                           <Calendar size={9} />
                           {isActive ? "Hingga" : "Expired"} {formatDate(m.expires_at)}
@@ -311,11 +314,11 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => setMemberModal({ userId: m.user?.id, name: m.user?.name || "User" })} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--accent-dim)", borderRadius: 3, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 3 }}>
+                  <button onClick={() => setMemberModal({ userId: m.user?.id || m.user_id, name: m.user?.name || "User" })} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--accent-dim)", borderRadius: 3, color: "var(--accent)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 3 }}>
                     <Plus size={10} /> Perpanjang
                   </button>
                   {isActive && (
-                    <button onClick={() => adminAction("deactivate_member", m.id, { user_id: m.user?.id })} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--red)", borderRadius: 3, color: "var(--red)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 3 }}>
+                    <button onClick={() => adminAction("deactivate_member", m.id, { user_id: m.user?.id || m.user_id })} style={{ padding: "4px 8px", background: "transparent", border: "1px solid var(--red)", borderRadius: 3, color: "var(--red)", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: 3 }}>
                       <X size={10} /> Nonaktifkan
                     </button>
                   )}
