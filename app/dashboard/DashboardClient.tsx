@@ -18,7 +18,7 @@ const SORT_OPTIONS: { value: SortMode; label: string; icon: React.ReactNode }[] 
 export default function DashboardClient() {
   const [query, setQuery]   = useState("");
   const [tags, setTags]     = useState<string[]>([]);
-  const [sort, setSort]     = useState<SortMode>("recent");
+  const [sort, setSort]     = useState<SortMode>("random");
   const [posts, setPosts]   = useState<Post[]>([]);
   const [total, setTotal]   = useState(0);
   const [page, setPage]     = useState(1);
