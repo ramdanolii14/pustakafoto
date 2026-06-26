@@ -44,11 +44,24 @@ export default function AdminPage() {
       const params = new URLSearchParams({ action: t, page: String(p) });
       if (q) params.set("q", q);
       const res = await fetch(`/api/admin?${params}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        console.error("Admin fetch error:", err);
+        setData([]);
+        setTotal(0);
+        return;
+      }
       const d = await res.json();
       const key = t === "posts" ? "posts" : t === "comments" ? "comments" : t === "members" ? "members" : "users";
       setData(d[key] || []);
       setTotal(d.total || 0);
-    } finally { setLoading(false); }
+    } catch (err) {
+      console.error("Admin fetch exception:", err);
+      setData([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { if (isAdmin) fetchData(tab, 1, search); }, [isAdmin, tab]);
