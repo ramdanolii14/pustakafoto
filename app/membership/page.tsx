@@ -21,7 +21,7 @@ interface SubData {
 const BENEFITS = [
   "Akses semua foto di setiap post tanpa batas",
   "Lihat konten eksklusif members-only",
-  "Akses konten dewasa (18+)",
+  "Akses konten lebih mudah",
   "Multi download all file for easy access",
 ];
 
@@ -42,7 +42,7 @@ export default function MembershipPage() {
 
   const waMessage = session
     ? encodeURIComponent(
-        `Halo, saya ingin berlangganan PustakaFoto Member.\n\nEmail: ${session.user.email}\nNama: ${session.user.name}\n\nMohon konfirmasi pembayaran Rp 14.999/bulan.`
+        `Halo, saya ingin berlangganan PustakaFoto Member.\n\nEmail: ${session.user.email}\nNama: ${session.user.name}\n\nMohon kirimkan qrisnya bang.`
       )
     : "";
 
@@ -68,7 +68,7 @@ export default function MembershipPage() {
             PustakaFoto Membership
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.6 }}>
-            Akses penuh ke semua konten eksklusif dari para cosplayer terbaik.
+            Akses penuh ke semua konten.
           </p>
         </div>
 
@@ -83,11 +83,11 @@ export default function MembershipPage() {
             <Crown size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: "bold", color: "var(--accent)" }}>
-                Kamu sudah Member!
+                Yaayyy ^_^ Kamu sudah Menjadi Member!
               </div>
               <div style={{ fontSize: 12, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
                 <Calendar size={11} />
-                Aktif hingga {formatDate(subData.subscription.expires_at)}
+                Membership Aktif hingga {formatDate(subData.subscription.expires_at)}
               </div>
             </div>
           </div>
