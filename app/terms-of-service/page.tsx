@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import AppShell from "@/components/layout/AppShell";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_URL || "https://pustakafoto.nyanpixel.my.id";
-const LAST_UPDATED = "26 Juni 2026";
-const CONTACT_EMAIL = "admin@nyanpixel.my.id";
+const LAST_UPDATED = "27 Juni 2026";
+const CONTACT_EMAIL = "developer@nyanpixel.my.id";
 
 export const metadata: Metadata = {
   title: "Terms of Service — PustakaFoto",
