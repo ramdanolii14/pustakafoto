@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ThumbsUp, ThumbsDown, Images, Calendar, AlertTriangle, Crown } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Images, Calendar, AlertTriangle, Crown, Bookmark } from "lucide-react";
 import MemberBadge from "@/components/membership/MemberBadge";
 import { Post } from "@/types";
 import { formatDate } from "@/lib/utils";

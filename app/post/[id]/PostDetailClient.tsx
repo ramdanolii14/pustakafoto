@@ -9,6 +9,7 @@ import PhotoGrid from "@/components/post/PhotoGrid";
 import VoteBar from "@/components/post/VoteBar";
 import CommentSection from "@/components/post/CommentSection";
 import DownloadAllButton from "@/components/post/DownloadAllButton";
+import BookmarkButton from "@/components/post/BookmarkButton";
 import MemberGate from "@/components/membership/MemberGate";
 import MemberBadge from "@/components/membership/MemberBadge";
 import NudeWarningModal from "@/components/membership/NudeWarningModal";
@@ -236,6 +237,7 @@ export default function PostDetailClient({ id }: { id: string }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
             <VoteBar postId={post.id} initialUpvotes={post.upvotes} initialDownvotes={post.downvotes} initialVote={post.user_vote} isLoggedIn={!!session} />
 
+            <BookmarkButton postId={post.id} isLoggedIn={!!session} />
             {canSeeAll && files.length > 0 && <DownloadAllButton postId={post.id} fileCount={files.length} postTitle={post.title} />}
 
             {!canSeeAll && !session && (
@@ -326,7 +328,7 @@ export default function PostDetailClient({ id }: { id: string }) {
         <>
           {visibleFiles.length > 0 ? (
             <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 3, padding: "14px", marginBottom: 12 }}>
-              <PhotoGrid files={visibleFiles} pageSize={30} />
+              <PhotoGrid files={visibleFiles} pageSize={12} />
             </div>
           ) : (
             <div style={{ padding: "30px", textAlign: "center", border: "1px solid var(--border)", borderRadius: 3, color: "var(--text-3)", fontSize: 13, marginBottom: 12, background: "var(--bg-2)" }}>
