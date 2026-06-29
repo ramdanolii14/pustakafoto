@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Upload, BookImage, User, Shield, Crown, Menu, X, Bookmark } from "lucide-react";
+import { LogOut, Upload, BookImage, User, Shield, Crown, Menu, X, Bookmark, Compass } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
 
@@ -84,6 +84,13 @@ export default function Navbar() {
                   color: "var(--text-3)", borderRadius: 3, fontSize: 11, textDecoration: "none",
                 }}>
                   <Bookmark size={11} /> Saved
+                </Link>
+                <Link href="/explore" style={{
+                  display: "flex", alignItems: "center", gap: 4, padding: "5px 8px",
+                  background: "transparent", border: "1px solid var(--border)",
+                  color: "var(--text-3)", borderRadius: 3, fontSize: 11, textDecoration: "none",
+                }}>
+                  <Compass size={11} /> Explore
                 </Link>
                 <Link href="/upload" style={{
                   display: "flex", alignItems: "center", gap: 4, padding: "5px 10px",
@@ -191,6 +198,7 @@ export default function Navbar() {
             {[
               { href: "/membership", icon: <Crown size={14} />, label: "Membership" },
               { href: "/bookmarks", icon: <Bookmark size={14} />, label: "Saved Posts" },
+              { href: "/explore", icon: <Compass size={14} />, label: "Explore" },
               ...(isAdmin ? [{ href: "/admin", icon: <Shield size={14} />, label: "Admin Panel" }] : []),
             ].map((item) => (
               <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={{

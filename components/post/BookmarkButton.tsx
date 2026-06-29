@@ -39,7 +39,7 @@ export default function BookmarkButton({
 
     setLoading(true);
     const prev = bookmarked;
-    setBookmarked(!prev); // optimistic
+    setBookmarked(!prev);
 
     try {
       const res = await fetch("/api/bookmarks", {
@@ -50,7 +50,7 @@ export default function BookmarkButton({
       const data = await res.json();
       setBookmarked(data.bookmarked);
     } catch {
-      setBookmarked(prev); // revert
+      setBookmarked(prev);
     } finally {
       setLoading(false);
     }

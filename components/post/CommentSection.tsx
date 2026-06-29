@@ -42,7 +42,6 @@ export default function CommentSection({
   };
 
   const deleteComment = async (id: string, userId: string) => {
-    // Admin uses admin API, owner uses regular API
     const endpoint = isAdmin && userId !== currentUserId
       ? `/api/admin`
       : `/api/comments?id=${id}`;

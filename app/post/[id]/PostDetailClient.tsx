@@ -10,6 +10,7 @@ import VoteBar from "@/components/post/VoteBar";
 import CommentSection from "@/components/post/CommentSection";
 import DownloadAllButton from "@/components/post/DownloadAllButton";
 import BookmarkButton from "@/components/post/BookmarkButton";
+import RelatedPosts from "@/components/post/RelatedPosts";
 import MemberGate from "@/components/membership/MemberGate";
 import MemberBadge from "@/components/membership/MemberBadge";
 import NudeWarningModal from "@/components/membership/NudeWarningModal";
@@ -349,6 +350,13 @@ export default function PostDetailClient({ id }: { id: string }) {
       <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 3, padding: "16px 18px" }}>
         <CommentSection postId={post.id} initialComments={comments} currentUserId={session?.user.id} isAdmin={isAdmin} />
       </div>
+
+      {/* Related Posts */}
+      <RelatedPosts
+        postId={post.id}
+        character={post.character_name}
+        tags={post.tags || []}
+      />
     </AppShell>
   );
 }

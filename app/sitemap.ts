@@ -10,6 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: BASE, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
     { url: `${BASE}/dashboard`, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
+    { url: `${BASE}/explore`, lastModified: new Date(), changeFrequency: "daily", priority: 0.95 },
   ];
 
   // Tag explore pages — static, always indexed

@@ -13,9 +13,9 @@ type Phase = "idle" | "fetching" | "downloading" | "zipping" | "done" | "error";
 
 interface ProgressState {
   phase: Phase;
-  current: number;   // files fetched so far
-  total: number;     // total files
-  percent: number;   // 0–100
+  current: number;
+  total: number;
+  percent: number;
   errorMsg?: string;
 }
 
