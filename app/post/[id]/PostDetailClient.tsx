@@ -42,6 +42,13 @@ export default function PostDetailClient({ id }: { id: string }) {
   const [isMember, setIsMember] = useState(false);
   const [nudeConfirmed, setNudeConfirmed] = useState(false);
   const [showNudeModal, setShowNudeModal] = useState(false);
+
+  // Check sessionStorage on mount — once confirmed 18+, don't ask again this session
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const confirmed = sessionStorage.getItem("pustakafoto_18_confirmed");
+    if (confirmed === "true") setNudeConfirmed(true);
+  }, []);
   const [forcingMembersOnly, setForcingMembersOnly] = useState(false);
 
   useEffect(() => {
@@ -134,7 +141,13 @@ export default function PostDetailClient({ id }: { id: string }) {
       {/* Nude warning modal */}
       {showNudeModal && (
         <NudeWarningModal
-          onConfirm={() => { setNudeConfirmed(true); setShowNudeModal(false); }}
+          onConfirm={() => {
+            setNudeConfirmed(true);
+            setShowNudeModal(false);
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("pustakafoto_18_confirmed", "true");
+            }
+          }}
           onCancel={() => router.back()}
         />
       )}
