@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { User, Calendar, Images, ThumbsUp, ThumbsDown, ArrowLeft } from "lucide-react";
+import { User, Calendar, Images, ThumbsUp, ThumbsDown, ArrowLeft, Download, Loader } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import PostCard from "@/components/post/PostCard";
 import { authClient } from "@/lib/auth-client";
@@ -38,6 +38,31 @@ export default function ProfilePage() {
   const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/export");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="(.+)"/);
+      const fileName = match?.[1] || "pustakafoto-data-export.json";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch {
+      alert("Failed to export your data. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchProfile = async (p: number, append = false) => {
     if (p === 1) setLoading(true);
@@ -154,8 +179,31 @@ export default function ProfilePage() {
         </div>
 
         {isOwnProfile && (
-          <div style={{ fontSize: 12, color: "var(--text-3)", alignSelf: "flex-start" }}>
-            This is your profile
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignSelf: "flex-start", alignItems: "flex-end" }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+              This is your profile
+            </div>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              title="Download all your data (posts, comments, votes, bookmarks) in JSON format"
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "6px 12px",
+                background: "transparent",
+                border: "1px solid var(--border-2)",
+                borderRadius: 3,
+                color: exporting ? "var(--text-3)" : "var(--text-2)",
+                fontSize: 12,
+                fontFamily: "var(--font-sans)",
+                cursor: exporting ? "wait" : "pointer",
+              }}
+            >
+              {exporting
+                ? <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> Exporting...</>
+                : <><Download size={12} /> Export My Data</>
+              }
+            </button>
           </div>
         )}
       </div>
@@ -200,6 +248,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </AppShell>
   );
 }

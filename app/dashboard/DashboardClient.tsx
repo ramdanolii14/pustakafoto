@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, Loader, LayoutGrid, Clock, Shuffle, TrendingUp } from "lucide-react";
+import { Search, Loader, LayoutGrid, Clock, Shuffle, TrendingUp, Columns, Grid3x3 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import PostCard from "@/components/post/PostCard";
 import TagFilter from "@/components/dashboard/TagFilter";
+import MasonryGrid from "@/components/dashboard/MasonryGrid";
 import { Post } from "@/types";
+
+type LayoutMode = "grid" | "masonry";
 
 type SortMode = "recent" | "random" | "top";
 
@@ -18,7 +21,19 @@ const SORT_OPTIONS: { value: SortMode; label: string; icon: React.ReactNode }[] 
 export default function DashboardClient() {
   const [query, setQuery]   = useState("");
   const [tags, setTags]     = useState<string[]>([]);
-  const [sort, setSort]     = useState<SortMode>("random");
+  const [sort, setSort]     = useState<SortMode>("recent");
+  const [layout, setLayout] = useState<LayoutMode>("grid");
+
+  // Persist layout choice
+  useEffect(() => {
+    const saved = localStorage.getItem("pustakafoto_layout") as LayoutMode | null;
+    if (saved === "grid" || saved === "masonry") setLayout(saved);
+  }, []);
+
+  const handleLayoutChange = (l: LayoutMode) => {
+    setLayout(l);
+    localStorage.setItem("pustakafoto_layout", l);
+  };
   const [posts, setPosts]   = useState<Post[]>([]);
   const [total, setTotal]   = useState(0);
   const [page, setPage]     = useState(1);
@@ -50,7 +65,7 @@ export default function DashboardClient() {
 
   // Initial load
   useEffect(() => {
-    fetchPosts("", [], "random", 1, false);
+    fetchPosts("", [], "recent", 1, false);
   }, [fetchPosts]);
 
   // Debounced search + tag + sort changes
@@ -127,8 +142,42 @@ export default function DashboardClient() {
           );
         })}
 
-        {/* Count on the right */}
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 5 }}>
+        {/* Layout toggle */}
+        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          <button
+            onClick={() => handleLayoutChange("grid")}
+            title="Grid layout"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28,
+              border: `1px solid ${layout === "grid" ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: 3,
+              background: layout === "grid" ? "rgba(192,160,96,0.1)" : "transparent",
+              color: layout === "grid" ? "var(--accent)" : "var(--text-3)",
+              cursor: "pointer",
+            }}
+          >
+            <Grid3x3 size={13} />
+          </button>
+          <button
+            onClick={() => handleLayoutChange("masonry")}
+            title="Masonry layout"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28,
+              border: `1px solid ${layout === "masonry" ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: 3,
+              background: layout === "masonry" ? "rgba(192,160,96,0.1)" : "transparent",
+              color: layout === "masonry" ? "var(--accent)" : "var(--text-3)",
+              cursor: "pointer",
+            }}
+          >
+            <Columns size={13} />
+          </button>
+        </div>
+
+        {/* Count */}
+        <div style={{ fontSize: 12, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 5 }}>
           {loading && posts.length > 0 ? (
             <><Loader size={11} style={{ animation: "spin 1s linear infinite" }} /> Updating...</>
           ) : (
@@ -138,11 +187,13 @@ export default function DashboardClient() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid / Masonry */}
       {posts.length === 0 && !loading ? (
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-3)", fontSize: 14 }}>
           {query || tags.length > 0 ? "No posts match your search." : "No posts yet. Be the first to upload."}
         </div>
+      ) : layout === "masonry" ? (
+        <MasonryGrid posts={posts} />
       ) : (
         <div style={{
           display: "grid",

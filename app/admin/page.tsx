@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Shield, Users, FileText, MessageSquare, Crown,
   Trash2, Ban, CheckCircle, Search, Loader,
-  ChevronRight, UserCheck, Plus, Calendar, X
+  ChevronRight, UserCheck, Plus, Calendar, X, Download
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import { authClient } from "@/lib/auth-client";
@@ -80,6 +80,24 @@ export default function AdminPage() {
       setBanTarget(null); setBanReason("");
       setMemberModal(null);
     }
+  };
+
+  const handleExport = async (format: "json" | "csv") => {
+    const url = `/api/admin/export?type=${tab}&format=${format}`;
+    const res = await fetch(url);
+    if (!res.ok) { alert("Export failed."); return; }
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="(.+)"/);
+    const fileName = match?.[1] || `pustakafoto-${tab}-export.${format}`;
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
   };
 
   const handleActivateMember = async () => {
@@ -204,7 +222,29 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 8 }}>{total.toLocaleString()} {tab}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>{total.toLocaleString()} {tab}</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => handleExport("csv")} style={{
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "4px 9px", background: "transparent",
+            border: "1px solid var(--border)", borderRadius: 3,
+            color: "var(--text-3)", fontSize: 11, cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+          }}>
+            <Download size={10} /> CSV
+          </button>
+          <button onClick={() => handleExport("json")} style={{
+            display: "flex", alignItems: "center", gap: 4,
+            padding: "4px 9px", background: "transparent",
+            border: "1px solid var(--border)", borderRadius: 3,
+            color: "var(--text-3)", fontSize: 11, cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+          }}>
+            <Download size={10} /> JSON
+          </button>
+        </div>
+      </div>
 
       {loading ? (
         <div style={{ padding: "40px 0", textAlign: "center", color: "var(--text-3)" }}>

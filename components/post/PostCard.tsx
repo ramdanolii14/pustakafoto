@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/utils";
 
 interface PostCardProps {
   post: Post;
+  masonry?: boolean; // when true, use natural aspect ratio instead of fixed 3/4
 }
 
 const CDN_HOST = "cdn.pustakafoto.nyanpixel.my.id";
@@ -30,7 +31,7 @@ function toCharSlug(name: string): string {
   return encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"));
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, masonry = false }: PostCardProps) {
   return (
     <Link href={`/post/${post.id}`} style={{ textDecoration: "none", display: "block" }}>
       <article
@@ -43,13 +44,21 @@ export default function PostCard({ post }: PostCardProps) {
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
       >
         {/* Thumbnail */}
-        <div style={{ position: "relative", aspectRatio: "3/4", overflow: "hidden", background: "var(--bg-3)" }}>
+        <div style={{
+          position: "relative",
+          aspectRatio: masonry ? undefined : "3/4",
+          overflow: "hidden",
+          background: "var(--bg-3)",
+        }}>
           {post.thumbnail_url ? (
             <img
               src={cfImg(post.thumbnail_url, 280, 68)}
               alt={post.title}
               style={{
-                width: "100%", height: "100%", objectFit: "cover", display: "block",
+                width: "100%",
+                height: masonry ? "auto" : "100%",
+                objectFit: masonry ? "contain" : "cover",
+                display: "block",
                 // Blur nude thumbnails
                 filter: post.is_nude ? "blur(12px)" : "none",
                 transform: post.is_nude ? "scale(1.1)" : "none",
