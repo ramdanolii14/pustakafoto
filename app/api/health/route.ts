@@ -5,8 +5,13 @@ export const dynamic = "force-dynamic";
 
 interface CheckResult {
   status: "ok" | "error";
-  latency_ms?: number;
-  error?: string;
+  label: string;
+  latency_ms: number | null;
+  message: string;
+}
+
+function ms(start: number) {
+  return Math.round((Date.now() - start) * 100) / 100;
 }
 
 async function checkDatabase(): Promise<CheckResult> {
@@ -15,9 +20,9 @@ async function checkDatabase(): Promise<CheckResult> {
     const db = getAdminClient();
     const { error } = await db.from("posts").select("id", { count: "exact", head: true }).limit(1);
     if (error) throw error;
-    return { status: "ok", latency_ms: Date.now() - start };
+    return { status: "ok", label: "Database (Supabase)", latency_ms: ms(start), message: "Connected and responding normally." };
   } catch (err: any) {
-    return { status: "error", error: err.message || "Database connection failed" };
+    return { status: "error", label: "Database (Supabase)", latency_ms: null, message: err.message || "Database connection failed." };
   }
 }
 
@@ -27,9 +32,9 @@ async function checkAuthTables(): Promise<CheckResult> {
     const db = getAdminClient();
     const { error } = await db.from("user").select("id", { count: "exact", head: true }).limit(1);
     if (error) throw error;
-    return { status: "ok", latency_ms: Date.now() - start };
+    return { status: "ok", label: "Authentication (Better Auth)", latency_ms: ms(start), message: "User tables reachable." };
   } catch (err: any) {
-    return { status: "error", error: err.message || "Auth tables unreachable" };
+    return { status: "error", label: "Authentication (Better Auth)", latency_ms: null, message: err.message || "Auth tables unreachable." };
   }
 }
 
@@ -37,15 +42,12 @@ async function checkR2(): Promise<CheckResult> {
   const start = Date.now();
   try {
     const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL;
-    if (!r2Dev) throw new Error("R2 URL not configured");
-
-    // Lightweight check: just verify the domain responds (HEAD request to root)
+    if (!r2Dev) throw new Error("R2 public URL is not configured.");
     const res = await fetch(r2Dev, { method: "HEAD", signal: AbortSignal.timeout(5000) });
-    // R2 may return 404 for root path — that's still "reachable"
-    if (res.status >= 500) throw new Error(`R2 returned ${res.status}`);
-    return { status: "ok", latency_ms: Date.now() - start };
+    if (res.status >= 500) throw new Error(`R2 responded with HTTP ${res.status}.`);
+    return { status: "ok", label: "Storage (Cloudflare R2)", latency_ms: ms(start), message: "CDN endpoint is reachable." };
   } catch (err: any) {
-    return { status: "error", error: err.message || "R2 unreachable" };
+    return { status: "error", label: "Storage (Cloudflare R2)", latency_ms: null, message: err.message || "R2 endpoint unreachable." };
   }
 }
 
@@ -60,30 +62,58 @@ function checkEnvVars(): CheckResult {
   ];
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    return { status: "error", error: `Missing env vars: ${missing.join(", ")}` };
+    return {
+      status: "error",
+      label: "Environment Configuration",
+      latency_ms: null,
+      message: `Missing required variable(s): ${missing.join(", ")}.`,
+    };
   }
-  return { status: "ok" };
+  return { status: "ok", label: "Environment Configuration", latency_ms: null, message: "All required variables are set." };
 }
 
 export async function GET() {
   const startTime = Date.now();
 
-  const [database, authTables, r2, env] = await Promise.all([
+  const [database, auth, storage, environment] = await Promise.all([
     checkDatabase(),
     checkAuthTables(),
     checkR2(),
     Promise.resolve(checkEnvVars()),
   ]);
 
-  const allChecks = { database, auth_tables: authTables, storage_r2: r2, environment: env };
-  const allHealthy = Object.values(allChecks).every((c) => c.status === "ok");
+  const checks = [database, auth, storage, environment];
+  const failedCount = checks.filter((c) => c.status === "error").length;
+  const overallStatus = failedCount === 0 ? "healthy" : failedCount === checks.length ? "down" : "degraded";
+
+  const avgLatency = (() => {
+    const latencies = checks.map((c) => c.latency_ms).filter((v): v is number => v !== null);
+    if (latencies.length === 0) return null;
+    return Math.round((latencies.reduce((a, b) => a + b, 0) / latencies.length) * 100) / 100;
+  })();
 
   const body = {
-    status: allHealthy ? "healthy" : "degraded",
+    service: "PustakaFoto",
+    status: overallStatus,
+    summary: `${checks.length - failedCount}/${checks.length} systems operational`,
     timestamp: new Date().toISOString(),
-    total_latency_ms: Date.now() - startTime,
-    checks: allChecks,
+    response_time_ms: ms(startTime),
+    average_check_latency_ms: avgLatency,
+    checks: checks.map((c) => ({
+      name: c.label,
+      status: c.status,
+      latency_ms: c.latency_ms,
+      message: c.message,
+    })),
   };
 
-  return NextResponse.json(body, { status: allHealthy ? 200 : 503 });
+  const httpStatus = overallStatus === "healthy" ? 200 : overallStatus === "degraded" ? 200 : 503;
+
+  return new NextResponse(JSON.stringify(body, null, 2), {
+    status: httpStatus,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }
