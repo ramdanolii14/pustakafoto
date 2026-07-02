@@ -5,19 +5,20 @@ import { useRouter } from "next/navigation";
 import {
   Shield, Users, FileText, MessageSquare, Crown,
   Trash2, Ban, CheckCircle, Search, Loader,
-  ChevronRight, UserCheck, Plus, Calendar, X, Download
+  ChevronRight, UserCheck, Plus, Calendar, X, Download, TrendingUp
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
+import AdminOverview from "@/components/admin/AdminOverview";
 import { authClient } from "@/lib/auth-client";
 import { formatDate } from "@/lib/utils";
 
-type Tab = "posts" | "comments" | "users" | "members";
+type Tab = "posts" | "comments" | "users" | "members" | "overview";
 
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<Tab>("posts");
+  const [tab, setTab] = useState<Tab>("overview");
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -201,6 +202,7 @@ export default function AdminPage() {
       {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 14, background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "3px 3px 0 0" }}>
         {([
+          { id: "overview", label: "Overview", icon: <TrendingUp size={12} /> },
           { id: "posts", label: "Posts", icon: <FileText size={12} /> },
           { id: "comments", label: "Comments", icon: <MessageSquare size={12} /> },
           { id: "users", label: "Users", icon: <Users size={12} /> },
@@ -212,6 +214,9 @@ export default function AdminPage() {
         ))}
       </div>
 
+      {/* Overview tab */}
+      {tab === "overview" && <AdminOverview />}
+
       {/* Search (users only) */}
       {tab === "users" && (
         <div style={{ position: "relative", marginBottom: 10 }}>
@@ -222,7 +227,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      {tab !== "overview" && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <span style={{ fontSize: 11, color: "var(--text-3)" }}>{total.toLocaleString()} {tab}</span>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => handleExport("csv")} style={{
@@ -244,7 +249,7 @@ export default function AdminPage() {
             <Download size={10} /> JSON
           </button>
         </div>
-      </div>
+      </div>}
 
       {loading ? (
         <div style={{ padding: "40px 0", textAlign: "center", color: "var(--text-3)" }}>
