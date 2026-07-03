@@ -342,7 +342,7 @@ export default function PostDetailClient({ id }: { id: string }) {
         <>
           {visibleFiles.length > 0 ? (
             <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 3, padding: "14px", marginBottom: 12 }}>
-              <PhotoGrid files={visibleFiles} pageSize={30} />
+              <PhotoGrid files={visibleFiles} pageSize={33} />
             </div>
           ) : (
             <div style={{ padding: "30px", textAlign: "center", border: "1px solid var(--border)", borderRadius: 3, color: "var(--text-3)", fontSize: 13, marginBottom: 12, background: "var(--bg-2)" }}>
