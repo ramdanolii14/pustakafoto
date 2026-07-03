@@ -387,7 +387,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Paginations */}
       {(hasMore || page > 1) && (
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
           {page > 1 && <button onClick={() => { const p = page - 1; setPage(p); fetchData(tab, p, search); }} style={{ padding: "7px 16px", background: "var(--bg-2)", border: "1px solid var(--border-2)", borderRadius: 3, color: "var(--text)", fontSize: 12, fontFamily: "var(--font-sans)", cursor: "pointer" }}>Prev</button>}
