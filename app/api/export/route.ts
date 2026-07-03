@@ -2,23 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase";
 import { headers } from "next/headers";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function GET(_req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Rate limit by user ID — 3 exports per 5 minutes
+  const rl = rateLimit(`export:${session.user.id}`, { limit: 3, windowSec: 300 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const db = getAdminClient();
   const userId = session.user.id;
   const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
 
-  // User profile
   const { data: user } = await db
     .from("user")
     .select("id, name, email, image, role, createdAt")
     .eq("id", userId)
     .single();
 
-  // User's posts with files
   const { data: posts } = await db
     .from("posts")
     .select(`
@@ -31,8 +34,6 @@ export async function GET(_req: NextRequest) {
     .order("created_at", { ascending: false });
 
   const postIds = (posts || []).map((p: any) => p.id);
-
-  // Files for each post
   let files: any[] = [];
   if (postIds.length > 0) {
     const { data } = await db
@@ -42,33 +43,28 @@ export async function GET(_req: NextRequest) {
     files = data || [];
   }
 
-  // User's comments
   const { data: comments } = await db
     .from("comments")
     .select("id, post_id, content, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  // User's votes
   const { data: votes } = await db
     .from("votes")
     .select("post_id, vote_type, created_at")
     .eq("user_id", userId);
 
-  // User's bookmarks
   const { data: bookmarks } = await db
     .from("bookmarks")
     .select("post_id, created_at")
     .eq("user_id", userId);
 
-  // Membership history
   const { data: subscriptions } = await db
     .from("subscriptions")
     .select("status, amount, started_at, expires_at, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  // Enrich posts with full file URLs
   const enrichedPosts = (posts || []).map((p: any) => ({
     ...p,
     thumbnail_url: `${r2Dev}/${p.thumbnail_key}`,

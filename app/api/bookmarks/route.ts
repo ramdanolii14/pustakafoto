@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase";
 import { headers } from "next/headers";
+import { rateLimit, RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit";
 
 // GET /api/bookmarks?post_id=xxx  → check if bookmarked
 // GET /api/bookmarks?page=1       → list user's bookmarks
@@ -14,7 +15,6 @@ export async function GET(req: NextRequest) {
   const db = getAdminClient();
   const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
 
-  // Check single post
   if (post_id) {
     const { data } = await db
       .from("bookmarks")
@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ bookmarked: !!data });
   }
 
-  // List all bookmarks with post data
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
   const perPage = 24;
   const offset = (page - 1) * perPage;
@@ -63,6 +62,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit by user ID — 60 bookmark toggles per minute
+  const rl = rateLimit(`bookmark:${session.user.id}`, RATE_LIMITS.action);
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const { post_id } = await req.json();
   if (!post_id) return NextResponse.json({ error: "post_id required" }, { status: 400 });
