@@ -19,6 +19,31 @@ interface ProgressState {
   errorMsg?: string;
 }
 
+/**
+ * Build a clean filename for each photo in the ZIP.
+ * Format: nyanpixel_[title]_[index].ext
+ * e.g. nyanpixel_spring_blossom_shoot_001.jpg
+ */
+function buildFileName(postTitle: string | undefined, index: number, originalName: string): string {
+  // Get extension from original filename
+  const ext = originalName.includes(".")
+    ? originalName.split(".").pop()?.toLowerCase() || "jpg"
+    : "jpg";
+
+  // Sanitize title: lowercase, spaces → underscores, strip special chars
+  const titleSlug = (postTitle || "photo")
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 40)
+    .replace(/_+$/g, ""); // trim trailing underscores
+
+  // Zero-pad index: 001, 002, ..., 099, 100
+  const num = String(index + 1).padStart(3, "0");
+
+  return `nyanpixel_${titleSlug}_${num}.${ext}`;
+}
+
 export default function DownloadAllButton({ postId, fileCount, postTitle }: DownloadAllButtonProps) {
   const [prog, setProg] = useState<ProgressState>({
     phase: "idle", current: 0, total: 0, percent: 0,
@@ -46,23 +71,28 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
 
       if (!files || files.length === 0) throw new Error("No files found");
 
-      const total = files.length;
+      // Sort by sort_order so numbering matches the post display order
+      const sorted = [...files].sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const total = sorted.length;
       setProg({ phase: "downloading", current: 0, total, percent: 0 });
 
-      // 2. Fetch all blobs in parallel (batch of 4 at a time to avoid overwhelming)
+      // 2. Fetch all blobs in batches of 4
       const blobs: { name: string; blob: Blob }[] = [];
-
       const BATCH = 4;
-      for (let i = 0; i < files.length; i += BATCH) {
+
+      for (let i = 0; i < sorted.length; i += BATCH) {
         if (signal.aborted) throw new DOMException("Aborted", "AbortError");
 
-        const batch = files.slice(i, i + BATCH);
+        const batch = sorted.slice(i, i + BATCH);
         const results = await Promise.all(
-          batch.map(async (f: { url: string; file_name: string }) => {
+          batch.map(async (f: { url: string; file_name: string }, bi: number) => {
             const r = await fetch(f.url, { signal });
-            if (!r.ok) throw new Error(`Failed to fetch ${f.file_name}`);
+            if (!r.ok) throw new Error(`Failed to fetch file ${i + bi + 1}`);
             const blob = await r.blob();
-            return { name: f.file_name, blob };
+            // Use branded filename instead of original
+            const name = buildFileName(postTitle, i + bi, f.file_name);
+            return { name, blob };
           })
         );
 
@@ -72,11 +102,11 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
           phase: "downloading",
           current: done,
           total,
-          percent: Math.round((done / total) * 80), // 0–80% for downloading
+          percent: Math.round((done / total) * 80),
         });
       }
 
-      // 3. Zip everything in-browser using JSZip
+      // 3. Zip with renamed files
       setProg({ phase: "zipping", current: total, total, percent: 85 });
 
       const JSZip = (await import("jszip")).default;
@@ -93,17 +123,20 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
             phase: "zipping",
             current: total,
             total,
-            percent: 85 + Math.round(meta.percent * 0.14), // 85–99%
+            percent: 85 + Math.round(meta.percent * 0.14),
           });
         }
       );
 
       setProg({ phase: "done", current: total, total, percent: 100 });
 
-      // 4. Trigger single ZIP download
-      const zipName = postTitle
-        ? `${postTitle.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.zip`
-        : `pustakafoto_${postId.slice(0, 8)}.zip`;
+      // 4. Trigger ZIP download — ZIP name also branded
+      const titleSlug = (postTitle || "photos")
+        .toLowerCase()
+        .replace(/\s+/g, "_")
+        .replace(/[^a-z0-9_]/g, "")
+        .slice(0, 50);
+      const zipName = `nyanpixel_${titleSlug}.zip`;
 
       const url = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
@@ -114,11 +147,10 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-      // Reset after short delay
       setTimeout(() => setProg({ phase: "idle", current: 0, total: 0, percent: 0 }), 3000);
 
     } catch (err: any) {
-      if (err.name === "AbortError") return; // cancelled, already reset
+      if (err.name === "AbortError") return;
       setProg({
         phase: "error",
         current: 0, total: 0, percent: 0,
@@ -147,7 +179,6 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 200 }}>
-      {/* Button */}
       <div style={{ display: "flex", gap: 6 }}>
         <button
           onClick={handleDownload}
@@ -182,7 +213,6 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
           {phaseLabel[phase]}
         </button>
 
-        {/* Cancel button — only while active */}
         {isActive && (
           <button
             onClick={cancel}
@@ -202,30 +232,17 @@ export default function DownloadAllButton({ postId, fileCount, postTitle }: Down
         )}
       </div>
 
-      {/* Progress bar — visible while active or done */}
       {(isActive || phase === "done" || phase === "error") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {/* Track */}
           <div style={{
-            height: 3,
-            background: "var(--bg-3)",
-            borderRadius: 2,
-            overflow: "hidden",
+            height: 3, background: "var(--bg-3)", borderRadius: 2, overflow: "hidden",
           }}>
             <div style={{
-              height: "100%",
-              width: `${percent}%`,
-              background: phase === "error"
-                ? "var(--red)"
-                : phase === "done"
-                ? "var(--green)"
-                : "var(--accent)",
-              borderRadius: 2,
-              transition: "width 0.3s ease",
+              height: "100%", width: `${percent}%`,
+              background: phase === "error" ? "var(--red)" : phase === "done" ? "var(--green)" : "var(--accent)",
+              borderRadius: 2, transition: "width 0.3s ease",
             }} />
           </div>
-
-          {/* Labels */}
           <div style={{
             display: "flex", justifyContent: "space-between",
             fontSize: 10, color: phase === "error" ? "var(--red)" : "var(--text-3)",
