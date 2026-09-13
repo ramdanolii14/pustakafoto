@@ -1,113 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase";
-import { deleteR2Objects } from "@/lib/r2";
 import { headers } from "next/headers";
+import { rateLimit, RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit";
+import { isBannedUser } from "@/lib/check-banned";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+// GET /api/bookmarks?post_id=xxx  → check if bookmarked
+// GET /api/bookmarks?page=1       → list user's bookmarks
+export async function GET(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const post_id = searchParams.get("post_id");
   const db = getAdminClient();
   const r2Dev = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_DEV_URL!;
 
-  // Get session to check user vote
-  const session = await auth.api
-    .getSession({ headers: await headers() })
-    .catch(() => null);
-
-  const { data: post, error } = await db
-    .from("posts")
-    .select(
-      `
-      id, user_id, title, character_name, description, tags,
-      thumbnail_key, file_count, upvotes, downvotes, created_at, updated_at,
-      is_nude, is_members_only, is_free_all, free_percent, forced_members_only,
-      user:user_id (id, name, image)
-    `
-    )
-    .eq("id", id)
-    .single();
-
-  if (error || !post) {
-    return NextResponse.json({ error: "Post not found" }, { status: 404 });
-  }
-
-  const { data: files } = await db
-    .from("post_files")
-    .select("*")
-    .eq("post_id", id)
-    .order("sort_order", { ascending: true });
-
-  const { data: comments } = await db
-    .from("comments")
-    .select(`*, author:user_id (id, name, image)`)
-    .eq("post_id", id)
-    .order("created_at", { ascending: true });
-
-  let userVote = null;
-  if (session) {
-    const { data: vote } = await db
-      .from("votes")
-      .select("vote_type")
-      .eq("post_id", id)
+  if (post_id) {
+    const { data } = await db
+      .from("bookmarks")
+      .select("id")
       .eq("user_id", session.user.id)
+      .eq("post_id", post_id)
       .single();
-    userVote = vote?.vote_type || null;
+    return NextResponse.json({ bookmarked: !!data });
   }
 
-  const enrichedFiles = (files || []).map((f: any) => ({
-    ...f,
-    url: `${r2Dev}/${f.file_key}`,
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+  const perPage = 24;
+  const offset = (page - 1) * perPage;
+
+  const { data, error, count } = await db
+    .from("bookmarks")
+    .select(`
+      id, created_at,
+      post:post_id (
+        id, user_id, title, character_name, tags,
+        thumbnail_key, file_count, upvotes, downvotes, created_at,
+        is_nude, is_members_only,
+        user:user_id (id, name, image)
+      )
+    `, { count: "exact" })
+    .eq("user_id", session.user.id)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + perPage - 1);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const bookmarks = (data || []).map((b: any) => ({
+    ...b,
+    post: b.post ? {
+      ...b.post,
+      thumbnail_url: `${r2Dev}/${b.post.thumbnail_key}`,
+      author: b.post.user,
+    } : null,
   }));
 
-  return NextResponse.json({
-    post: {
-      ...post,
-      thumbnail_url: `${r2Dev}/${(post as any).thumbnail_key}`,
-      author: (post as any).user,
-      user_vote: userVote,
-    },
-    files: enrichedFiles,
-    comments: comments || [],
-  });
+  return NextResponse.json({ bookmarks, total: count || 0, page, per_page: perPage });
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+// POST /api/bookmarks → toggle bookmark
+export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Banned users can't add bookmarks — checked server-side so this
+  // can't be bypassed by calling the API directly.
+  if (await isBannedUser(session.user.id)) {
+    return NextResponse.json({ error: "Akunmu dibanned" }, { status: 403 });
   }
+
+  // Rate limit by user ID — 60 bookmark toggles per minute
+  const rl = rateLimit(`bookmark:${session.user.id}`, RATE_LIMITS.action);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
+  const { post_id } = await req.json();
+  if (!post_id) return NextResponse.json({ error: "post_id required" }, { status: 400 });
 
   const db = getAdminClient();
 
-  const { data: post } = await db
-    .from("posts")
-    .select("user_id, thumbnail_key")
-    .eq("id", id)
+  const { data: existing } = await db
+    .from("bookmarks")
+    .select("id")
+    .eq("user_id", session.user.id)
+    .eq("post_id", post_id)
     .single();
 
-  if (!post || post.user_id !== session.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (existing) {
+    await db.from("bookmarks").delete().eq("id", existing.id);
+    return NextResponse.json({ bookmarked: false });
   }
 
-  const { data: files } = await db
-    .from("post_files")
-    .select("file_key")
-    .eq("post_id", id);
-
-  const keys = [
-    (post as any).thumbnail_key,
-    ...((files || []).map((f: any) => f.file_key)),
-  ];
-
-  await deleteR2Objects(keys);
-  await db.from("posts").delete().eq("id", id);
-
-  return NextResponse.json({ success: true });
+  await db.from("bookmarks").insert({ user_id: session.user.id, post_id });
+  return NextResponse.json({ bookmarked: true });
 }
