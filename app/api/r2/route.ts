@@ -15,7 +15,7 @@ import { rateLimit, RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/r2/upload
- * Body: { post_id: string, files: Array<{ name: string, type: string, size: number }> }
+ * Body: { post_id: string, character_name: string, files: Array<{ name: string, type: string, size: number }> }
  * Returns: Array<{ upload_url, file_key, public_url }>
  *
  * Upload is admin-only. This check is authoritative — the client UI
@@ -36,18 +36,19 @@ export async function POST(req: NextRequest) {
   const rl = rateLimit(`upload:${session.user.id}`, RATE_LIMITS.upload);
   if (!rl.allowed) return rateLimitResponse(rl);
 
-  const { post_id, files } = await req.json();
+  const { post_id, character_name, files } = await req.json();
 
-  if (!post_id || !files || !Array.isArray(files)) {
+  if (!post_id || !character_name?.trim() || !files || !Array.isArray(files)) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
   const results = await Promise.all(
-    files.map(async (f: { name: string; type: string; size: number }) => {
+    files.map(async (f: { name: string; type: string; size: number }, idx: number) => {
       if (!isValidImageType(f.type)) {
         throw new Error(`Unsupported file type: ${f.type}`);
       }
-      const key = buildFileKey(post_id, f.name);
+      // Branded name, never the uploader's original filename — see buildFileKey.
+      const key = buildFileKey(post_id, character_name, idx, f.type);
       const upload_url = await getPresignedUploadUrl(key, f.type);
       return {
         upload_url,

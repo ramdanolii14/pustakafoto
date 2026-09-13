@@ -1,3 +1,4 @@
+// lib/r2.ts
 import {
   S3Client,
   PutObjectCommand,
@@ -71,11 +72,42 @@ export async function deleteR2Objects(keys: string[]): Promise<void> {
 
 /**
  * Build an R2 object key for a post file.
- * Format: posts/{postId}/{filename}
+ * Format: posts/{postId}/[nyanpixel.my.id]-{character}-{n}.{ext}
+ *
+ * Deliberately does NOT use the uploader's original filename or any
+ * part of it — that can leak local file paths, device/app names, or
+ * other uploader metadata baked into the filename. Every file instead
+ * gets a consistent, branded, non-identifying name. Extension is
+ * derived from the validated MIME type, not the original filename.
  */
-export function buildFileKey(postId: string, filename: string): string {
-  const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `posts/${postId}/${sanitized}`;
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "image/avif": "avif",
+};
+
+export function buildFileKey(
+  postId: string,
+  characterName: string,
+  index: number,
+  mimeType: string
+): string {
+  const ext = MIME_EXT[mimeType] || "jpg";
+
+  const character =
+    characterName
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_-]/g, "") || "unknown";
+
+  const filename = `[nyanpixel.my.id]-${character}-${index + 1}.${ext}`;
+  return `posts/${postId}/${filename}`;
 }
 
 export { r2, BUCKET };

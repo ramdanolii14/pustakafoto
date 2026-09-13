@@ -1,3 +1,4 @@
+// app/upload/page.tsx
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -187,6 +188,7 @@ export default function UploadPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           post_id: postId,
+          character_name: character.trim(),
           files: files.map((f) => ({
             name: f.file.name,
             type: f.file.type,
@@ -277,12 +279,16 @@ export default function UploadPage() {
       }
 
       // Step 5: Register only successful files in DB
+      // file_name is derived from the branded file_key (not the
+      // uploader's original filename) — that name is what shows up in
+      // the photo lightbox caption and download filenames, so it needs
+      // to be the branded one too, not just the R2 storage key.
       const successfulFileRecords = urls
         .map((u: any, i: number) => ({ u, i }))
         .filter(({ i }: any) => !allFailedIndices.includes(i))
         .map(({ u, i }: any) => ({
           file_key: u.file_key,
-          file_name: files[i].file.name,
+          file_name: u.file_key.split("/").pop(),
           file_size: files[i].file.size,
           mime_type: files[i].file.type,
           sort_order: i,
