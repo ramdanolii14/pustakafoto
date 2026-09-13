@@ -70,9 +70,33 @@ export default function UploadPage() {
   const [isFreeAll, setIsFreeAll] = useState(true);
   const [freePercent, setFreePercent] = useState(30);
 
+  // Admin-gate for the upload feature. null = still checking.
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (!isPending && !session) router.push("/auth/login");
   }, [session, isPending, router]);
+
+  // Re-verify admin status from the server on every visit — this is UX
+  // only (nicer than a blank page); the real enforcement happens on the
+  // API routes, which check the DB again regardless of what this says.
+  useEffect(() => {
+    if (isPending || !session) return;
+    let cancelled = false;
+    fetch("/api/admin/check-role")
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setIsAdmin(!!d.isAdmin); })
+      .catch(() => { if (!cancelled) setIsAdmin(false); });
+    return () => { cancelled = true; };
+  }, [session, isPending]);
+
+  // Non-admin: show the restriction popup, then bounce to dashboard.
+  useEffect(() => {
+    if (isAdmin === false) {
+      const t = setTimeout(() => router.push("/dashboard"), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [isAdmin, router]);
 
   // Cleanup all object URLs on unmount
   useEffect(() => {
@@ -308,7 +332,7 @@ export default function UploadPage() {
     fontFamily: "var(--font-sans)",
   });
 
-  if (isPending) {
+  if (isPending || isAdmin === null) {
     return (
       <AppShell>
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-3)" }}>
@@ -318,6 +342,30 @@ export default function UploadPage() {
     );
   }
   if (!session) return null;
+
+  if (isAdmin === false) {
+    return (
+      <AppShell>
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 4, padding: 28, width: "100%", maxWidth: 380, textAlign: "center" }}>
+            <Lock size={28} color="var(--red)" style={{ margin: "0 auto 14px" }} />
+            <h3 style={{ fontSize: 16, fontWeight: "bold", color: "var(--text)", marginBottom: 8 }}>
+              Akses Dibatasi
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 18, lineHeight: 1.5 }}>
+              Fitur upload saat ini hanya untuk admin. Kamu akan diarahkan kembali ke dashboard.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard")}
+              style={{ padding: "10px 20px", background: "var(--accent)", border: "none", borderRadius: 3, color: "#000", fontSize: 13, fontWeight: "bold", fontFamily: "var(--font-sans)", cursor: "pointer" }}
+            >
+              Kembali ke Dashboard
+            </button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

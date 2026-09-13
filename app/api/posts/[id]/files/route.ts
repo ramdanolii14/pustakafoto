@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase";
 import { headers } from "next/headers";
+import { isAdminUser } from "@/lib/require-admin";
 
 export async function GET(
   req: NextRequest,
@@ -37,6 +38,11 @@ export async function POST(
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  // Registering files is part of the upload flow — admin-only, checked
+  // server-side so this can't be reached by calling the API directly.
+  if (!(await isAdminUser(session.user.id))) {
+    return NextResponse.json({ error: "Forbidden — upload is admin-only" }, { status: 403 });
   }
 
   const db = getAdminClient();

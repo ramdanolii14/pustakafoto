@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase";
 import { headers } from "next/headers";
 import { rateLimit, getClientIp, RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit";
+import { isAdminUser } from "@/lib/require-admin";
 
 export async function GET(req: NextRequest) {
   // Read requests: rate limit by IP (no login required) — 120/min
@@ -77,6 +78,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Post creation (part of the upload flow) is admin-only. Re-verified
+  // from the DB here so this can't be reached by calling the API directly.
+  if (!(await isAdminUser(session.user.id))) {
+    return NextResponse.json({ error: "Forbidden — upload is admin-only" }, { status: 403 });
+  }
 
   // Rate limit POST by user ID — 30 posts per minute
   const rl = rateLimit(`post-create:${session.user.id}`, RATE_LIMITS.write);

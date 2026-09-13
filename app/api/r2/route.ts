@@ -9,16 +9,25 @@ import {
 import { getAdminClient } from "@/lib/supabase";
 import { headers } from "next/headers";
 import { isValidImageType } from "@/lib/utils";
+import { isAdminUser } from "@/lib/require-admin";
 
 /**
  * POST /api/r2/upload
  * Body: { post_id: string, files: Array<{ name: string, type: string, size: number }> }
  * Returns: Array<{ upload_url, file_key, public_url }>
+ *
+ * Upload is admin-only. This check is authoritative — the client UI
+ * also gates the upload page, but that's just UX; someone hitting
+ * this route directly (curl, devtools, modified JS) still gets 403
+ * here because the role is re-verified from the DB on every request.
  */
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await isAdminUser(session.user.id))) {
+    return NextResponse.json({ error: "Forbidden — upload is admin-only" }, { status: 403 });
   }
 
   const { post_id, files } = await req.json();
