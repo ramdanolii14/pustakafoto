@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
       if (!isValidImageType(f.type)) {
         throw new Error(`Unsupported file type: ${f.type}`);
       }
-      // Branded name, never the uploader's original filename — see buildFileKey.
+      // Branded name: increment number for order + random token so the
+      // number alone can't be guessed/incremented to reach other files.
       const key = buildFileKey(post_id, character_name, idx, f.type);
       const upload_url = await getPresignedUploadUrl(key, f.type);
       return {
