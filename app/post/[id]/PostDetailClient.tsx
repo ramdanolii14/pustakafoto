@@ -1,3 +1,4 @@
+// app/post/[id]/PostDetailClient.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -164,7 +165,15 @@ export default function PostDetailClient({ id }: { id: string }) {
       {/* Banner */}
       {post.thumbnail_url && !nudeNeedsConfirm && (
         <div style={{
-          width: "100%", height: 340, overflow: "hidden",
+          width: "100%",
+          // Fixed 340px works fine on narrow (mobile) viewports since the
+          // container itself is narrow there, keeping a reasonable aspect
+          // ratio. On wide desktop viewports the container can reach up to
+          // 1368px while height stayed pinned at 340px, forcing an extreme
+          // ~4:1 crop. clamp() keeps mobile exactly as it was (min 340px)
+          // and only grows the height on wider screens, capped at 480px.
+          height: "clamp(340px, 26vw, 480px)",
+          overflow: "hidden",
           borderRadius: 4, marginBottom: 12, position: "relative",
           background: "var(--bg-3)",
         }}>
